@@ -89,8 +89,11 @@
   /* Feuille de l'écran de connexion, posée sur le bleu nuit. */
   --login-sheet: var(--sheet);
   --login-edge: var(--rule);
-  /* Messages d'erreur : un rouge plus soutenu que la marge, lisible en petit corps. */
+  /* Petits textes rouges (erreurs, suppression) : plus soutenu que la marge, lisible en petit corps.
+     --err-fill est le même rouge en aplat, sous un texte blanc. */
   --err: #c23a55;
+  --err-fill: #c23a55;
+  --login-err: var(--err);
   /* Titres et numéros des jours : une didone, à empattements très fins. */
   --f-display: "Bodoni Moda", "Bodoni 72", Didot, Georgia, serif;
   --f-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -111,7 +114,10 @@
     /* En sombre, la feuille reste dans les bleus et plus claire que le fond, pour rester « posée dessus ». */
     --login-sheet: #272e55;
     --login-edge: #3b4472;
-    --err: #f08fa3;
+    --err: #e0607a;
+    --err-fill: var(--margin);
+    /* Sur la feuille bleue de la connexion, il faut un rouge plus clair pour le même contraste. */
+    --login-err: #ea7a90;
     --ink: #e4e8f4;
     --ink-2: #9ca5c4;
     --ink-3: #6e7696;
@@ -146,7 +152,10 @@
   /* En sombre, la feuille reste dans les bleus et plus claire que le fond, pour rester « posée dessus ». */
   --login-sheet: #272e55;
   --login-edge: #3b4472;
-  --err: #f08fa3;
+  --err: #e0607a;
+  --err-fill: var(--margin);
+  /* Sur la feuille bleue de la connexion, il faut un rouge plus clair pour le même contraste. */
+  --login-err: #ea7a90;
   --ink: #e4e8f4;
   --ink-2: #9ca5c4;
   --ink-3: #6e7696;
@@ -319,14 +328,15 @@ kbd {
   opacity: 0.6;
   cursor: progress;
 }
+/* Texte rouge de petite taille : le rouge des messages d'erreur, plus lisible que celui de la marge. */
 .btn.danger {
-  color: var(--margin);
-  border-color: color-mix(in srgb, var(--margin) 45%, transparent);
+  color: var(--err);
+  border-color: color-mix(in srgb, var(--err) 45%, transparent);
 }
 .btn.danger.armed {
-  background: var(--margin);
+  background: var(--err-fill);
   color: #fff;
-  border-color: var(--margin);
+  border-color: var(--err-fill);
 }
 
 /* Menu ⋯ */
@@ -397,7 +407,7 @@ kbd {
   background: var(--margin);
 }
 .menu .danger-item {
-  color: var(--margin);
+  color: var(--err);
 }
 .menu .menu-sec {
   display: flex;
@@ -541,8 +551,8 @@ kbd {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--sheet);
-  background: var(--margin);
+  color: #fff;
+  background: var(--err-fill);
   border-radius: 4px;
   padding: 1px 6px;
 }
@@ -1312,6 +1322,9 @@ kbd {
   padding-block: 24px;
   /* Même bleu nuit que le bandeau et l'écran de lancement : la feuille y est posée comme dans un écrin. */
   background: var(--band);
+}
+.login .err {
+  color: var(--login-err);
 }
 .login form {
   width: min(380px, 100%);
