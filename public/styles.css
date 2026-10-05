@@ -42,6 +42,8 @@
 
 /* ---------- Jetons ---------- */
 :root {
+  /* La page est d'un bleu pâle (bleu Nil) ; --paper reste la teinte claire des champs de saisie. */
+  --page: #d7e3ec;
   --paper: #f5f6fb;
   --sheet: #ffffff;
   --ink: #1b2140;
@@ -73,6 +75,22 @@
   /* Beige « papier » : assez soutenu pour garder le même caractère d'un écran à l'autre. */
   --weekend: #f6f1e7;
   --shadow: 0 1px 2px rgba(27, 33, 64, 0.07), 0 10px 30px rgba(27, 33, 64, 0.12);
+  /* Feuilles posées sur la page : un bord dans le ton de la page et une ombre légère. */
+  --panel-edge: #b9c9d6;
+  --panel-shadow: 0 1px 2px rgba(20, 45, 70, 0.07), 0 10px 26px rgba(20, 45, 70, 0.1);
+  /* Bandeau d'en-tête : les couleurs de l'icône, identiques en clair et en sombre. */
+  --band: #1b2140;
+  --band-ink: #f6f1e7;
+  --band-ink-2: #b4bad4;
+  --band-edge: color-mix(in srgb, var(--band-ink) 40%, transparent);
+  --band-margin: #f39aa9;
+  /* Voile derrière une fenêtre ouverte : il assombrit toujours ce qu'il recouvre. */
+  --veil: color-mix(in srgb, var(--ink) 35%, transparent);
+  /* Feuille de l'écran de connexion, posée sur le bleu nuit. */
+  --login-sheet: var(--sheet);
+  --login-edge: var(--rule);
+  /* Messages d'erreur : un rouge plus soutenu que la marge, lisible en petit corps. */
+  --err: #c23a55;
   /* Titres et numéros des jours : une didone, à empattements très fins. */
   --f-display: "Bodoni Moda", "Bodoni 72", Didot, Georgia, serif;
   --f-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -84,8 +102,16 @@
    dans le menu, ce qui pose data-theme sur <html> (voir theme.js). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --page: #10131c;
     --paper: #10131c;
     --sheet: #171b28;
+    --panel-edge: var(--rule);
+    --panel-shadow: none;
+    --veil: rgba(0, 0, 0, 0.6);
+    /* En sombre, la feuille reste dans les bleus et plus claire que le fond, pour rester « posée dessus ». */
+    --login-sheet: #272e55;
+    --login-edge: #3b4472;
+    --err: #f08fa3;
     --ink: #e4e8f4;
     --ink-2: #9ca5c4;
     --ink-3: #6e7696;
@@ -111,8 +137,16 @@
   }
 }
 :root[data-theme="dark"] {
+  --page: #10131c;
   --paper: #10131c;
   --sheet: #171b28;
+  --panel-edge: var(--rule);
+  --panel-shadow: none;
+  --veil: rgba(0, 0, 0, 0.6);
+  /* En sombre, la feuille reste dans les bleus et plus claire que le fond, pour rester « posée dessus ». */
+  --login-sheet: #272e55;
+  --login-edge: #3b4472;
+  --err: #f08fa3;
   --ink: #e4e8f4;
   --ink-2: #9ca5c4;
   --ink-3: #6e7696;
@@ -150,7 +184,7 @@ html {
 }
 body {
   margin: 0;
-  background: var(--paper);
+  background: var(--page);
   color: var(--ink);
   font-family: var(--f-body);
   font-size: 14px;
@@ -195,6 +229,29 @@ kbd {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+  padding-bottom: 16px;
+  color: var(--band-ink);
+  /* Le bandeau va d'un bord à l'autre de la fenêtre et jusqu'en haut : une image de bordure
+     unie, sans bordure, qui déborde de l'en-tête sur trois côtés. Elle ne crée pas de
+     défilement horizontal et ne rogne pas le menu, qui dépasse sous l'en-tête. */
+  border-image: conic-gradient(var(--band) 0 0) fill 0 / 0 / 100vh 100vw 0;
+}
+/* Dans le bandeau, les commandes sont dessinées au filet, comme le cadre de l'icône. */
+.top .btn {
+  background: transparent;
+  border-color: var(--band-edge);
+  color: var(--band-ink);
+}
+.top .btn:hover {
+  border-color: var(--band-ink);
+}
+.top .btn.primary {
+  background: var(--band-ink);
+  border-color: var(--band-ink);
+  color: var(--band);
+}
+.top :focus-visible {
+  outline-color: var(--band-ink);
 }
 .brand {
   display: flex;
@@ -215,11 +272,11 @@ kbd {
 .wk {
   font-family: var(--f-mono);
   font-size: 12px;
-  color: var(--ink-2);
+  color: var(--band-ink-2);
   white-space: nowrap;
 }
 .wk b {
-  color: var(--margin);
+  color: var(--band-margin);
   font-weight: 500;
 }
 .nav {
@@ -283,6 +340,7 @@ kbd {
   z-index: 30;
   min-width: 240px;
   background: var(--sheet);
+  color: var(--ink);
   border: 1px solid var(--rule);
   border-radius: var(--r-panel);
   box-shadow: var(--shadow);
@@ -423,8 +481,9 @@ kbd {
 }
 .legend .cat-item .hrs {
   font-family: var(--f-mono);
-  font-size: 11px;
-  color: var(--ink-3);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 .legend .swatch {
@@ -587,7 +646,8 @@ kbd {
 /* ---------- Planche ---------- */
 .board {
   background: var(--sheet);
-  border: 1px solid var(--rule);
+  border: 1px solid var(--panel-edge);
+  box-shadow: var(--panel-shadow);
   border-radius: var(--r-panel);
   display: grid;
   grid-template-columns: 58px repeat(var(--n), minmax(0, 1fr));
@@ -1001,7 +1061,7 @@ kbd {
 .scrim {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--ink) 35%, transparent);
+  background: var(--veil);
   z-index: 40;
   display: flex;
   align-items: center;
@@ -1204,7 +1264,7 @@ kbd {
 }
 .err {
   font-size: 13px;
-  color: var(--margin);
+  color: var(--err);
   margin: 0;
 }
 .actions {
@@ -1250,11 +1310,13 @@ kbd {
   justify-content: center;
   padding-inline: 16px;
   padding-block: 24px;
+  /* Même bleu nuit que le bandeau et l'écran de lancement : la feuille y est posée comme dans un écrin. */
+  background: var(--band);
 }
 .login form {
   width: min(380px, 100%);
-  background: var(--sheet);
-  border: 1px solid var(--rule);
+  background: var(--login-sheet);
+  border: 1px solid var(--login-edge);
   border-radius: var(--r-panel);
   padding: 24px 24px 24px 64px;
   display: flex;
@@ -1350,30 +1412,30 @@ kbd {
 }
 
 /* ---------- Choix de la vue ---------- */
+/* Placé dans le bandeau d'en-tête : il en prend les couleurs. */
 .view-seg {
   display: inline-flex;
-  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  border: 1px solid var(--band-edge);
   border-radius: var(--r-ctl);
   overflow: hidden;
-  background: var(--sheet);
 }
 .view-seg button {
   font: 500 13px var(--f-body);
-  color: var(--ink-2);
+  color: var(--band-ink-2);
   background: none;
   border: 0;
   padding: 7px 14px;
   cursor: pointer;
 }
 .view-seg button + button {
-  border-left: 1px solid var(--rule);
+  border-left: 1px solid var(--band-edge);
 }
 .view-seg button:hover {
-  color: var(--ink);
+  color: var(--band-ink);
 }
 .view-seg button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--band-ink);
+  color: var(--band);
 }
 /* « Jour » n'existe que sur écran étroit : ailleurs, la semaine montre les sept jours. */
 .view-seg button[data-view="day"] {
@@ -1494,9 +1556,10 @@ kbd {
   display: grid;
   grid-template-columns: 44px repeat(7, minmax(0, 1fr));
   background: var(--sheet);
-  border: 1px solid var(--rule);
+  border: 1px solid var(--panel-edge);
   border-radius: var(--r-panel);
   overflow: hidden;
+  box-shadow: var(--panel-shadow);
 }
 .mh {
   font-size: 11px;
@@ -1646,11 +1709,12 @@ kbd {
 /* « À venir » */
 .agenda {
   background: var(--sheet);
-  border: 1px solid var(--rule);
+  border: 1px solid var(--panel-edge);
   border-left: 2px solid var(--margin);
   border-radius: var(--r-panel);
   padding: 12px 14px 14px;
   min-width: 0;
+  box-shadow: var(--panel-shadow);
 }
 .agenda h2,
 .dayp h2 b {
@@ -1733,7 +1797,7 @@ kbd {
     display: block;
   }
   .view-seg button[data-view="day"] + button {
-    border-left: 1px solid var(--rule);
+    border-left: 1px solid var(--band-edge);
   }
   /* Calendrier compact : un chiffre et des pastilles ; le détail s'affiche dessous. */
   .month.mini {
@@ -1805,13 +1869,14 @@ kbd {
   }
   .dayp {
     background: var(--sheet);
-    border: 1px solid var(--rule);
+    border: 1px solid var(--panel-edge);
     border-left: 2px solid var(--margin);
     border-radius: var(--r-panel);
     padding: 12px 14px 14px;
     display: flex;
     flex-direction: column;
     gap: 5px;
+    box-shadow: var(--panel-shadow);
   }
   .dayp-head {
     display: flex;
@@ -1848,9 +1913,10 @@ kbd {
   /* Semaine en liste : un jour par ligne, la date dans la marge. */
   .wlist {
     background: var(--sheet);
-    border: 1px solid var(--rule);
+    border: 1px solid var(--panel-edge);
     border-radius: var(--r-panel);
     overflow: hidden;
+    box-shadow: var(--panel-shadow);
   }
   .wr {
     display: grid;
@@ -1951,6 +2017,10 @@ kbd {
     font-size: 28px;
     line-height: 1;
     box-shadow: var(--shadow);
+    /* Il flotte sur la page, hors du bandeau : il garde la couleur de l'action principale. */
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
   }
   /* Un seul jour affiché : le cadre du jour courant n'a rien à distinguer. */
   .todo.today::after,

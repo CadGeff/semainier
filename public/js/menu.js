@@ -182,8 +182,6 @@ export async function resetDemo() {
 // ------------------------------------------------------------------ Thème
 // Réglage propre à chaque appareil : Auto (suit le système), Clair ou Sombre.
 const THEME_KEY = "semainier.theme";
-const themeMetas = /** @type {HTMLMetaElement[]} */ ([...document.querySelectorAll('meta[name="theme-color"]')]);
-const themeDefaults = themeMetas.map((m) => m.content);
 
 function currentTheme() {
   const t = document.documentElement.getAttribute("data-theme");
@@ -201,11 +199,6 @@ function applyTheme(t) {
   } catch {
     /* stockage indisponible : réglage non mémorisé */
   }
-  // Couleur de la barre du navigateur mobile, alignée sur le thème affiché.
-  const paper = getComputedStyle(root).getPropertyValue("--paper").trim();
-  themeMetas.forEach((m, i) => {
-    m.content = t === "auto" ? themeDefaults[i] : paper;
-  });
   for (const b of menu.querySelectorAll("[data-theme-set]")) {
     b.setAttribute("aria-checked", String(/** @type {HTMLElement} */ (b).dataset.themeSet === t));
   }
