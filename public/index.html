@@ -194,10 +194,23 @@
           <span class="lbl">Jours</span>
           <div class="days" id="f-days"></div>
         </div>
+        <div class="field" id="untilField" hidden>
+          <label for="f-until">Jusqu'au</label>
+          <div class="until">
+            <input class="inp" type="date" id="f-until" />
+            <div class="chips" id="f-spans" role="group" aria-label="Durée de la série">
+              <button type="button" data-span="2" aria-pressed="false">2 jours</button>
+              <button type="button" data-span="3" aria-pressed="false">3 jours</button>
+              <button type="button" data-span="7" aria-pressed="false">1 semaine</button>
+              <button type="button" data-span="0" aria-pressed="false">Sans fin</button>
+            </div>
+          </div>
+        </div>
         <div class="field">
           <span class="lbl">Catégorie</span>
           <div class="cats" id="f-cats"></div>
         </div>
+        <p class="hint clash" id="clashHint" role="status" hidden></p>
         <p class="err" id="formErr" hidden></p>
         <div class="actions">
           <button type="button" class="btn danger spacer" id="f-delete" hidden>Supprimer</button>
@@ -215,6 +228,13 @@
           <h2 id="detTitle"></h2>
         </div>
         <div class="meta" id="detMeta"></div>
+        <div class="field">
+          <span class="lbl" id="redoLbl">Refaire</span>
+          <div class="chips" role="group" aria-labelledby="redoLbl">
+            <button type="button" id="d-redo"></button>
+            <button type="button" id="d-redo-other">Autre date…</button>
+          </div>
+        </div>
         <div class="actions">
           <button class="btn danger spacer" id="d-del"></button>
           <button class="btn" id="d-skip" hidden>Retirer ce jour</button>

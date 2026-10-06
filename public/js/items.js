@@ -15,6 +15,7 @@ import { newId } from "./ids.js";
  * @property {string} [to]                  "HH:MM"
  * @property {"none"|"daily"|"weekly"|"monthly"} recur
  * @property {number[]} [days]              jours de la semaine (0 = lundi) pour "weekly"
+ * @property {string} [until]               "AAAA-MM-JJ", dernier jour d'une série ; absent : sans fin
  * @property {string} cat                   catégorie (couleur)
  * @property {Record<string, boolean>} done     jours cochés
  * @property {Record<string, boolean>} skipped  jours retirés de la série
@@ -88,6 +89,8 @@ export function sanitize(raw) {
     it.days = Array.isArray(r.days) ? [...new Set(r.days.filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))] : [];
     if (!it.days.length) it.days = [dow(parse(it.start))];
   }
+  // Une date de fin n'a de sens que pour une série, et pas avant son premier jour.
+  if (it.recur !== "none" && isDate(r.until) && r.until >= it.start) it.until = r.until;
   for (const f of /** @type {const} */ (["done", "skipped"])) {
     if (r[f] && typeof r[f] === "object") {
       for (const k of Object.keys(r[f])) if (isDate(k) && r[f][k] === true) it[f][k] = true;

@@ -33,6 +33,20 @@ const fromMin = (m) => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
 
 const DN = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const DL = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+const MONTHS = [
+  "janvier",
+  "février",
+  "mars",
+  "avril",
+  "mai",
+  "juin",
+  "juillet",
+  "août",
+  "septembre",
+  "octobre",
+  "novembre",
+  "décembre",
+];
 
 /** Jours actifs d'une règle hebdo (par défaut : le jour de la date de départ). */
 const weekDays = (it) => (it.days && it.days.length ? it.days : [dow(parse(it.start))]);
@@ -43,10 +57,11 @@ const weekDays = (it) => (it.days && it.days.length ? it.days : [dow(parse(it.st
  * - daily   : tous les jours à partir de la date de départ
  * - weekly  : les jours de semaine cochés
  * - monthly : même quantième chaque mois ; le 31 tombe le dernier jour des mois courts
- * Un jour présent dans `skipped` est retiré de la série.
+ * Un jour présent dans `skipped` est retiré de la série ; une série s'arrête après `until`.
  */
 function occurs(it, day) {
   if (!it.start || day < it.start) return false;
+  if (it.until && it.recur && it.recur !== "none" && day > it.until) return false;
   if (it.skipped && it.skipped[day]) return false;
   const d = parse(day),
     s = parse(it.start);
@@ -64,7 +79,8 @@ function occurs(it, day) {
   }
 }
 
-function recurText(it) {
+/** Rythme d'une série, sans sa date de fin. */
+function rhythm(it) {
   if (it.recur === "daily") return "Chaque jour";
   if (it.recur === "weekly") {
     const days = weekDays(it)
@@ -74,11 +90,23 @@ function recurText(it) {
     if (days.join() === "0,1,2,3,4") return "Chaque jour de semaine (lun → ven)";
     return `Chaque semaine : ${days.map((i) => DL[i]).join(", ")}`;
   }
-  if (it.recur === "monthly") return `Chaque mois, le ${parse(it.start).getDate()}`;
-  return "Une seule fois";
+  return `Chaque mois, le ${parse(it.start).getDate()}`;
+}
+
+/** Dernier jour d'une série, ou null si elle n'a pas de fin. */
+const untilOf = (it) => (it.until && it.recur && it.recur !== "none" ? it.until : null);
+
+function recurText(it) {
+  if (!it.recur || it.recur === "none") return "Une seule fois";
+  const until = untilOf(it);
+  if (!until) return rhythm(it);
+  const u = parse(until);
+  // L'année n'est précisée que si la série ne finit pas l'année où elle commence.
+  const year = u.getFullYear() !== parse(it.start).getFullYear() ? ` ${u.getFullYear()}` : "";
+  return `${rhythm(it)}, jusqu'au ${u.getDate() === 1 ? "1er" : u.getDate()} ${MONTHS[u.getMonth()]}${year}`;
 }
 
 /** La tâche est-elle cochée pour ce jour ? */
 const isDone = (it, day) => !!(it.done && it.done[day]);
 
-export { pad, ds, parse, addDays, dow, mondayOf, isoWeek, toMin, fromMin, DN, DL, occurs, recurText, isDone };
+export { pad, ds, parse, addDays, dow, mondayOf, isoWeek, toMin, fromMin, DN, DL, occurs, recurText, untilOf, isDone };

@@ -27,14 +27,16 @@ J'ai aussi voulu garder la main sur toute la chaîne. Le code, les polices et le
 - **Liste « À venir »** : les éléments ponctuels des cinq prochaines semaines, regroupés par semaine, dans un panneau à côté du mois, qu'on ouvre ou referme d'un clic. Sur téléphone, elle s'arrête à deux semaines, avec un lien pour la suite.
 - **Créneaux bloqués** : un clic sur une case vide ouvre le formulaire d'un créneau à cette heure, avec un aperçu au survol et des durées prêtes à choisir.
 - **Tâches à cocher**, avec ou sans heure. Les tâches sans heure vont dans la ligne « À faire » du jour.
-- **Récurrence** quotidienne, hebdomadaire (jours au choix) ou mensuelle. Le 31 retombe sur le dernier jour des mois courts.
+- **Récurrence** quotidienne, hebdomadaire (jours au choix) ou mensuelle, sans fin ou jusqu'à une date choisie. Le 31 retombe sur le dernier jour des mois courts. Donner une date de fin à une série l'arrête sans effacer ce qui a été coché.
+- **Refaire** : depuis la fenêtre d'un élément, un clic en crée une copie pour le lendemain (ou pour demain, si l'élément est passé). « Autre date… » ouvre le formulaire prérempli, pour choisir un autre jour ou répéter la copie quelques jours. La copie est un élément indépendant.
+- **Chevauchements signalés** : quand un créneau bloqué en recouvre un autre, le formulaire le dit avant l'enregistrement, pour les cinq semaines à venir, et la copie en un clic le dit dans sa confirmation. C'est un signalement et non un refus : la grille place les deux créneaux côte à côte.
 - **Report des tâches non faites** : une tâche ponctuelle qui n'a pas été cochée réapparaît le lendemain dans « À faire », sans heure, pendant 7 jours au plus. Elle reste visible à sa date prévue, et la cocher la marque faite partout. Le report est calculé à l'affichage : rien n'est modifié en base tant qu'on ne coche pas.
 - **Pour une tâche récurrente, cocher ne vaut que pour le jour même** : l'occurrence suivante revient vierge. On peut aussi retirer un seul jour d'une série sans toucher au reste.
 - **Catégories nommées** (Travail, Sport & santé, Admin…) : la légende affiche le temps des créneaux bloqués par catégorie, sur la période affichée (jour, semaine ou mois), et un clic sur une catégorie atténue les autres. Les noms sont modifiables et synchronisés entre appareils.
 - **Synchronisation entre appareils** : le planning se recharge au retour sur l'onglet, au retour du réseau, et chaque minute tant qu'il reste affiché, sans interrompre une saisie en cours.
 - **Repères visuels** : jours passés atténués, jour courant encadré, week-end teinté, ligne de l'heure actuelle, compteur des tâches du jour.
 - **Thème Auto, Clair ou Sombre**, vue affichée à l'ouverture et panneau « À venir » ouvert ou non : mémorisés sur chaque appareil. Auto suit le système.
-- **Notifications** empilées en bas de l'écran, trois au maximum : une confirmation disparaît seule, une erreur ou le résultat d'un import reste jusqu'au clic sur « OK ».
+- **Notifications** empilées en bas de l'écran, trois au maximum : une confirmation disparaît seule ; une erreur, le résultat d'un import ou un chevauchement signalé restent jusqu'au clic sur « OK ».
 - **Raccourcis clavier** : <kbd>←</kbd> <kbd>→</kbd> pour passer à la période précédente ou suivante (semaine, mois, ou jour sur téléphone), <kbd>T</kbd> pour aujourd'hui, <kbd>N</kbd> pour un nouvel élément.
 - **Sauvegarde et restauration** : l'export JSON contient le planning et les noms des catégories ; l'import n'ajoute que ce qui manque, sans doublon. Le menu rappelle quand la dernière sauvegarde faite depuis cet appareil date de plus de 30 jours.
 - **Compte** : changement du mot de passe depuis le menu (12 caractères minimum).
@@ -78,7 +80,7 @@ flowchart LR
 
 **Une règle, pas des occurrences.** La base stocke chaque élément une seule fois, avec sa règle de répétition. Les occurrences sont calculées à l'affichage par `recurrence.js`, et le report des tâches non faites par `carry.js` : deux modules de fonctions pures couverts par des tests. Deux objets JSON par élément gardent les exceptions : `done`, pour les jours cochés, et `skipped`, pour les jours retirés de la série.
 
-**Démarrage explicite.** Les modules d'interface qui posent des écouteurs exportent une fonction `init…()` appelée par `app.js` : les importer ne pose aucun écouteur et ne déclenche aucun rendu, ce qui rend l'ordre de démarrage explicite. Seule exception, `store.js` choisit le mode de stockage et crée le client Supabase dès son import. La logique métier (récurrence, report des tâches, mois et liste « À venir », placement des créneaux, validation des imports, sauvegarde, traduction des erreurs) vit dans des modules sans accès au DOM, testés sous Node sans navigateur.
+**Démarrage explicite.** Les modules d'interface qui posent des écouteurs exportent une fonction `init…()` appelée par `app.js` : les importer ne pose aucun écouteur et ne déclenche aucun rendu, ce qui rend l'ordre de démarrage explicite. Seule exception, `store.js` choisit le mode de stockage et crée le client Supabase dès son import. La logique métier (récurrence, report des tâches, copie d'un élément, chevauchements, mois et liste « À venir », placement des créneaux, validation des imports, sauvegarde, traduction des erreurs) vit dans des modules sans accès au DOM, testés sous Node sans navigateur.
 
 **Trois modes, une interface.** `store.js` expose les mêmes méthodes (`list`, `save`, `remove`…) dans trois modes : Supabase en production, `localStorage` pour la démo publique (`#demo`), et un mode local quand `config.js` est vide. Il y a deux implémentations, Supabase et `localStorage` ; lectures et écritures passent par les mêmes appels quel que soit le mode. L'interface ne consulte le mode que pour adapter ce qui en dépend : menu du compte, bandeau de la démo, données d'exemple, rappel de sauvegarde, resynchronisation.
 
@@ -91,6 +93,7 @@ flowchart LR
 | `title` | `text` | Intitulé, de 1 à 120 caractères |
 | `kind` | `text` | `block` (créneau bloqué) ou `task` (tâche à cocher) |
 | `start_date` | `date` | Première occurrence |
+| `until_date` | `date` | Dernier jour d'une série, compris ; vide si elle n'a pas de fin |
 | `time_from`, `time_to` | `time` | Horaires : les deux ou aucun, et la fin après le début |
 | `recur` | `text` | `none`, `daily`, `weekly` ou `monthly` |
 | `days` | `smallint[]` | Jours actifs en hebdomadaire, de 0 (lundi) à 6 (dimanche) |
@@ -98,7 +101,7 @@ flowchart LR
 | `done`, `skipped` | `jsonb` | Occurrences cochées ou retirées : `{ "AAAA-MM-JJ": true }`. Pour une tâche ponctuelle, `done` retient le jour où elle a été faite |
 | `created_at`, `updated_at` | `timestamptz` | Dates de création (ordre d'affichage) et de dernière modification, posées par la base |
 
-Une seconde table, `settings`, contient une ligne par utilisateur avec les noms des catégories (`cat_labels`), sous la même RLS. Les contraintes du tableau (valeurs autorisées, longueurs, cohérence des horaires, heure obligatoire pour un créneau) sont vérifiées par Postgres lui-même (voir [`supabase/schema.sql`](supabase/schema.sql)). Pour les colonnes JSON, la base vérifie seulement qu'il s'agit d'un objet, et pour `cat_labels` qu'il reste sous 4 ko : le détail de leur contenu est validé par l'application.
+Une seconde table, `settings`, contient une ligne par utilisateur avec les noms des catégories (`cat_labels`), sous la même RLS. Les contraintes du tableau (valeurs autorisées, longueurs, cohérence des horaires, heure obligatoire pour un créneau, date de fin réservée aux séries et jamais antérieure au premier jour) sont vérifiées par Postgres lui-même (voir [`supabase/schema.sql`](supabase/schema.sql)). Pour les colonnes JSON, la base vérifie seulement qu'il s'agit d'un objet, et pour `cat_labels` qu'il reste sous 4 ko : le détail de leur contenu est validé par l'application.
 
 ## Sécurité
 
@@ -160,7 +163,7 @@ Pour un outil ouvert plusieurs fois par jour, un code à chaque connexion est un
 ### 1. Base de données
 
 1. Créer un projet sur [supabase.com](https://supabase.com), de préférence dans une région européenne.
-2. Dans **SQL Editor**, exécuter [`supabase/schema.sql`](supabase/schema.sql). Le script est idempotent : on peut le relancer sans risque, et il faut le faire après chaque mise à jour qui le modifie. Il crée ce qui manque et remet en place fonctions, déclencheurs et politiques ; il ne modifie pas une colonne déjà créée.
+2. Dans **SQL Editor**, exécuter [`supabase/schema.sql`](supabase/schema.sql). Le script est idempotent : on peut le relancer sans risque, et il faut le faire après chaque mise à jour qui le modifie. Il crée ce qui manque et remet en place fonctions, déclencheurs et politiques ; il ne modifie pas une colonne déjà créée. Quand une mise à jour ajoute une colonne, relancer le script **avant** de publier le site : l'ancienne version du site ignore la colonne, la nouvelle en a besoin pour charger le planning.
 3. Dans **Authentication → Sign In / Providers**, désactiver *Allow new users to sign up*.
 4. Dans **Authentication → Users → Add user**, créer son compte en cochant *Auto Confirm User*.
 
@@ -222,9 +225,9 @@ Chaque push sur `main` et chaque pull request déclenchent la [CI GitHub Actions
 | Lint | ESLint | Erreurs courantes, variables inutilisées, `===` obligatoire, pas de `var` |
 | Format | Prettier | Mise en forme homogène du code du projet (hors `vendor/`, `config.js`, SQL et Markdown) |
 | Types | TypeScript sur annotations JSDoc | Cohérence des types du code de `public/js/`, sans étape de compilation (`jsconfig.json`) |
-| Tests unitaires | `node:test` | Récurrence, report des tâches, mois et liste « À venir », placement des créneaux, validation des imports, sauvegarde et restauration, traduction des erreurs, cohérence du README avec le dépôt |
+| Tests unitaires | `node:test` | Récurrence et fin de série, report des tâches, copie d'un élément, chevauchements, mois et liste « À venir », placement des créneaux, cohérence des couleurs, validation des imports, sauvegarde et restauration, traduction des erreurs, cohérence du README avec le dépôt |
 | Tests de la base | `node:test` et [PGlite](https://pglite.dev) (Postgres embarqué) | `schema.sql` exécuté pour de vrai : relance et mise à niveau du script, droits de chaque rôle, RLS par utilisateur, 2FA imposée sur `items` et `settings`, contraintes |
-| Tests de bout en bout | Playwright (Chromium) | Démo, report des tâches, vues mois et semaine, bouton retour, connexion, mot de passe, 2FA, sauvegarde, sécurité, hors connexion |
+| Tests de bout en bout | Playwright (Chromium) | Démo, report des tâches, refaire un élément, fin de série, chevauchements, vues mois et semaine, bouton retour, connexion, mot de passe, 2FA, sauvegarde, sécurité, hors connexion |
 
 Les tests de bout en bout tournent sur le site servi avec ses en-têtes de production, et **simulent Supabase** ([`tests/e2e/fixtures.js`](tests/e2e/fixtures.js)) : aucun test ne touche la vraie base, et la simulation reproduit la politique RLS de la 2FA (aucune donnée sans session `aal2`). Les vraies règles SQL sont testées à part ([`tests/db/schema.test.js`](tests/db/schema.test.js)) sur un Postgres embarqué, où seuls les rôles, le schéma `auth` et le contenu du jeton sont simulés. Ce que ces tests ne couvrent pas : la configuration du projet Supabase lui-même (inscriptions fermées, réglages d'authentification), qui se vérifie dans son tableau de bord. Dependabot propose chaque mois les mises à jour des outils et des actions, validées par la CI avant fusion ; la copie de `supabase-js` dans `vendor/` se met à jour à la main.
 
@@ -254,9 +257,11 @@ public/                   le site, publié tel quel
     toast.js              notifications en bas de l'écran
     recurrence.js         dates et récurrence          ┐
     carry.js              report des tâches non faites │
-    month.js              mois et liste « À venir »    │
-    layout.js             placement des créneaux       │ logique sans DOM,
-    items.js              modèle, validation, exemple  │ testée sous Node
+    redo.js               copie d'un élément à refaire │
+    month.js              mois et liste « À venir »    │ logique sans DOM,
+    layout.js             placement des créneaux       │ testée sous Node
+    conflicts.js          chevauchements de créneaux   │
+    items.js              modèle, validation, exemple  │
     backup.js             sauvegarde et restauration   │
     errors.js             traduction des erreurs       ┘
     dom.js, ids.js        utilitaires

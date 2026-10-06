@@ -5,7 +5,7 @@
  * Pense à incrémenter CACHE quand tu ajoutes ou renommes un fichier de SHELL
  * (le test E2E offline.spec.js échoue si un fichier listé n'existe pas).
  */
-const CACHE = "semainier-v13";
+const CACHE = "semainier-v14";
 const SHELL = [
   "./",
   "index.html",
@@ -19,6 +19,7 @@ const SHELL = [
   "js/board.js",
   "js/carry.js",
   "js/categories.js",
+  "js/conflicts.js",
   "js/detail.js",
   "js/dom.js",
   "js/errors.js",
@@ -29,6 +30,7 @@ const SHELL = [
   "js/menu.js",
   "js/month.js",
   "js/recurrence.js",
+  "js/redo.js",
   "js/session.js",
   "js/state.js",
   "js/store.js",

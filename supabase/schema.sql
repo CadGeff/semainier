@@ -27,8 +27,17 @@ create table if not exists public.items (
   constraint items_block_timed check (kind <> 'block' or time_from is not null)
 );
 
+-- Date de fin d'une série, ajoutée après coup : la colonne et sa contrainte sont posées à part,
+-- pour qu'une base créée avec une version antérieure les reçoive en relançant ce script.
+alter table public.items add column if not exists until_date date;
+alter table public.items drop constraint if exists items_until_ok;
+alter table public.items add constraint items_until_ok check (
+  until_date is null or (recur <> 'none' and until_date >= start_date)
+);
+
 comment on table  public.items         is 'Semainier : créneaux bloqués et tâches, avec leur règle de récurrence.';
 comment on column public.items.days    is 'Récurrence hebdo : jours actifs, 0 = lundi … 6 = dimanche.';
+comment on column public.items.until_date is 'Dernier jour d''une série (compris). Vide : la série n''a pas de fin.';
 comment on column public.items.done    is 'Occurrences cochées : { "AAAA-MM-JJ": true }. Tâche ponctuelle : le jour où elle a été faite.';
 comment on column public.items.skipped is 'Occurrences retirées de la série : { "AAAA-MM-JJ": true }.';
 

@@ -109,7 +109,7 @@ function makeLocalStore(mode, key) {
 }
 
 // ------------------------------------------------------------------ Supabase
-const COLS = "id,title,kind,start_date,time_from,time_to,recur,days,cat,done,skipped";
+const COLS = "id,title,kind,start_date,until_date,time_from,time_to,recur,days,cat,done,skipped";
 
 /** @param {Item} it */
 const toRow = (it) => ({
@@ -117,6 +117,7 @@ const toRow = (it) => ({
   title: it.title,
   kind: it.kind,
   start_date: it.start,
+  until_date: it.recur && it.recur !== "none" && it.until ? it.until : null,
   time_from: it.from || null,
   time_to: it.to || null,
   recur: it.recur || "none",
@@ -144,6 +145,7 @@ const fromRow = (r) => {
     it.to = r.time_to.slice(0, 5);
   }
   if (r.days) it.days = r.days;
+  if (r.until_date && r.recur !== "none") it.until = r.until_date;
   return it;
 };
 
@@ -163,6 +165,14 @@ function makeSupabaseStore() {
   const check = ({ data, error }) => {
     if (error) throw toFrench(error);
     return data;
+  };
+  /** Comme `check`, pour la table items : une colonne absente a un message qui dit quoi faire. */
+  const checkItems = (res) => {
+    if (res.error && isMissingTable(res.error))
+      throw new Error(
+        "La base de données n'est pas à jour : relance supabase/schema.sql dans le SQL Editor de Supabase, puis recharge la page.",
+      );
+    return check(res);
   };
 
   return {
@@ -248,13 +258,13 @@ function makeSupabaseStore() {
 
     // ----- Données
     async list() {
-      return check(await client.from("items").select(COLS).order("created_at", { ascending: true })).map(fromRow);
+      return checkItems(await client.from("items").select(COLS).order("created_at", { ascending: true })).map(fromRow);
     },
     async save(item) {
-      check(await client.from("items").upsert(toRow(item)));
+      checkItems(await client.from("items").upsert(toRow(item)));
     },
     async saveMany(items) {
-      if (items.length) check(await client.from("items").upsert(items.map(toRow)));
+      if (items.length) checkItems(await client.from("items").upsert(items.map(toRow)));
     },
     async remove(id) {
       check(await client.from("items").delete().eq("id", id));

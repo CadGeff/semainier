@@ -97,3 +97,14 @@ test("import : rejette les champs du mauvais type et les dates impossibles", () 
   const flags = sanitize({ ...ok, done: { "2026-09-29": true, "2026-02-31": true, __proto__: true } });
   assert.deepEqual(Object.keys(flags.done), ["2026-09-29"]);
 });
+
+test("import : la date de fin n'est gardée que pour une série, et pas avant son premier jour", () => {
+  const base = { title: "Lecture", kind: "task", start: "2026-10-03" };
+  assert.equal(sanitize({ ...base, recur: "daily", until: "2026-10-05" }).until, "2026-10-05");
+  assert.equal(sanitize({ ...base, recur: "daily", until: "2026-10-03" }).until, "2026-10-03", "un seul jour");
+  assert.equal("until" in sanitize({ ...base, recur: "none", until: "2026-10-05" }), false, "élément ponctuel");
+  assert.equal("until" in sanitize({ ...base, recur: "daily", until: "2026-10-02" }), false, "avant le début");
+  assert.equal("until" in sanitize({ ...base, recur: "daily", until: "2026-02-30" }), false, "date impossible");
+  assert.equal("until" in sanitize({ ...base, recur: "daily", until: 20261005 }), false, "mauvais type");
+  assert.equal("until" in sanitize({ ...base, recur: "daily" }), false);
+});

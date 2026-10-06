@@ -126,6 +126,33 @@ test("schéma : une base créée avec une ancienne version est mise à niveau", 
   }
 });
 
+test("schéma : une base d'avant la date de fin reçoit la colonne sans perdre ses lignes", async () => {
+  const old = await freshDatabase();
+  try {
+    await old.query("insert into auth.users values ($1)", [ALICE]);
+    // Jusqu'à la v1.3.0, items n'avait pas de colonne until_date.
+    await old.exec(schema);
+    await old.exec(`
+      alter table public.items drop constraint items_until_ok;
+      alter table public.items drop column until_date;
+    `);
+    await old.query(
+      "insert into public.items (user_id, title, kind, start_date, recur) values ($1, 'Lecture', 'task', '2026-09-28', 'daily')",
+      [ALICE],
+    );
+    await old.exec(schema);
+    const { rows } = await old.query("select title, recur, until_date from public.items");
+    assert.deepEqual(rows, [{ title: "Lecture", recur: "daily", until_date: null }]);
+    // La contrainte est bien revenue avec la colonne.
+    await assert.rejects(
+      old.query("update public.items set until_date = '2026-09-01'"),
+      /violates check constraint "items_until_ok"/,
+    );
+  } finally {
+    await old.close();
+  }
+});
+
 test("schéma : updated_at est posé par la base sur les deux tables", async () => {
   await alice(INSERT_TASK, ["Horodatage"]);
   await alice("insert into public.settings (cat_labels) values ('{}')");
@@ -292,4 +319,17 @@ test("contraintes : les colonnes JSON sont des objets, les noms de catégories r
     alice("update public.settings set cat_labels = jsonb_build_object('bleu', $1::text)", ["x".repeat(5000)]),
     /violates check constraint/,
   );
+});
+
+test("contraintes : la date de fin est réservée aux séries et ne précède pas leur premier jour", async () => {
+  const cols = "title, kind, start_date, recur, until_date";
+  await rejectsItem(cols, "'x', 'task', '2026-10-03', 'none', '2026-10-05'");
+  await rejectsItem(cols, "'x', 'task', '2026-10-03', 'daily', '2026-10-02'");
+  const ok = await alice(
+    `insert into public.items (${cols}) values ('Fin de série', 'task', '2026-10-03', 'daily', '2026-10-03') returning id`,
+  );
+  // Une série ne peut pas redevenir ponctuelle en gardant sa date de fin.
+  await assert.rejects(alice("update public.items set recur = 'none' where id = $1", [ok[0].id]), /items_until_ok/);
+  await alice("update public.items set recur = 'none', until_date = null where id = $1", [ok[0].id]);
+  await alice("delete from public.items where id = $1", [ok[0].id]);
 });

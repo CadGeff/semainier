@@ -60,3 +60,43 @@ test("libellés de récurrence", () => {
   assert.equal(R.recurText({ start: "2026-09-28", recur: "weekly", days: [1, 3] }), "Chaque semaine : mardi, jeudi");
   assert.equal(R.recurText({ start: "2026-10-05", recur: "monthly" }), "Chaque mois, le 5");
 });
+
+test("fin de série : la série s'arrête après son dernier jour, qui est compris", () => {
+  const it = { start: "2026-10-03", recur: "daily", until: "2026-10-05" };
+  assert.equal(R.occurs(it, "2026-10-02"), false, "avant le début");
+  assert.equal(R.occurs(it, "2026-10-03"), true);
+  assert.equal(R.occurs(it, "2026-10-05"), true, "dernier jour");
+  assert.equal(R.occurs(it, "2026-10-06"), false, "lendemain de la fin");
+  const weekly = { start: "2026-09-29", recur: "weekly", days: [1], until: "2026-10-13" };
+  assert.equal(R.occurs(weekly, "2026-10-13"), true);
+  assert.equal(R.occurs(weekly, "2026-10-20"), false);
+  const monthly = { start: "2026-01-31", recur: "monthly", until: "2026-03-30" };
+  assert.equal(R.occurs(monthly, "2026-02-28"), true);
+  assert.equal(R.occurs(monthly, "2026-03-31"), false, "le 31 mars est après la fin");
+});
+
+test("fin de série : sans effet sur un élément ponctuel, et un jour retiré le reste", () => {
+  assert.equal(R.occurs({ start: "2026-10-03", recur: "none", until: "2026-10-01" }, "2026-10-03"), true);
+  assert.equal(R.untilOf({ start: "2026-10-03", recur: "none", until: "2026-10-05" }), null);
+  assert.equal(R.untilOf({ start: "2026-10-03", recur: "daily" }), null);
+  const it = { start: "2026-10-03", recur: "daily", until: "2026-10-05", skipped: { "2026-10-04": true } };
+  assert.equal(R.occurs(it, "2026-10-04"), false);
+  assert.equal(R.occurs(it, "2026-10-05"), true);
+});
+
+test("libellé d'une série qui a une fin", () => {
+  assert.equal(
+    R.recurText({ start: "2026-10-03", recur: "daily", until: "2026-10-05" }),
+    "Chaque jour, jusqu'au 5 octobre",
+  );
+  assert.equal(
+    R.recurText({ start: "2026-09-29", recur: "weekly", days: [1, 3], until: "2026-11-01" }),
+    "Chaque semaine : mardi, jeudi, jusqu'au 1er novembre",
+  );
+  assert.equal(
+    R.recurText({ start: "2026-12-15", recur: "monthly", until: "2027-03-15" }),
+    "Chaque mois, le 15, jusqu'au 15 mars 2027",
+    "l'année est précisée quand elle change",
+  );
+  assert.equal(R.recurText({ start: "2026-10-03", recur: "none", until: "2026-10-05" }), "Une seule fois");
+});

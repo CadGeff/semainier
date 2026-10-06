@@ -1,6 +1,6 @@
 {
   "name": "semainier",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "Planning perso en vue semaine ou mois : créneaux bloqués et tâches récurrentes.",
   "license": "MIT",
