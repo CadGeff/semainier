@@ -1,6 +1,6 @@
 // Formulaire de création / modification d'un élément.
 
-import { ds, parse, addDays, dow, toMin, fromMin, DN, DL } from "./recurrence.js";
+import { ds, parse, addDays, daysBetween, dow, toMin, fromMin, hasOccurrence, DN, DL } from "./recurrence.js";
 import { CATS, LAST } from "./items.js";
 import { doneAfterEdit } from "./carry.js";
 import { conflicts, conflictText } from "./conflicts.js";
@@ -21,8 +21,11 @@ let spanChips = [];
 let editing = null;
 /** Dernière date de départ saisie : quand elle change, la fin de la série suit. */
 let lastStart = "";
-/** Nombre de jours entre deux dates "AAAA-MM-JJ". Arrondi : un changement d'heure décale d'une heure. */
-const daysBetween = (a, b) => Math.round((parse(b).getTime() - parse(a).getTime()) / 864e5);
+/**
+ * Date complète et vraisemblable. Pendant la saisie au clavier, le champ passe par des années
+ * à un, deux puis trois chiffres (« 0002 », « 0020 », « 0202 ») : on n'en tire aucun calcul.
+ */
+const settled = (/** @type {string} */ day) => /^[1-9]\d{3}-\d{2}-\d{2}$/.test(day);
 
 function buildCatOptions() {
   $("f-cats").innerHTML = CATS.map(
@@ -55,8 +58,12 @@ function syncDur() {
 function syncSpan() {
   const start = field("f-date").value;
   const until = field("f-until").value;
-  const n = start && until ? daysBetween(start, until) + 1 : 0;
-  for (const c of spanChips) c.setAttribute("aria-pressed", String(Number(c.dataset.span) === n));
+  const n = settled(start) && settled(until) ? daysBetween(start, until) + 1 : null;
+  // « Sans fin » : aucune date de fin. Les autres : la série dure exactement ce nombre de jours.
+  for (const c of spanChips) {
+    const span = Number(c.dataset.span);
+    c.setAttribute("aria-pressed", String(span === 0 ? !until : span === n));
+  }
 }
 
 /** L'élément tel qu'il serait enregistré, pour ce qui compte dans un chevauchement ; null s'il est incomplet. */
@@ -89,8 +96,10 @@ function draftBlock() {
 function syncClash() {
   const it = draftBlock();
   const text = it ? conflictText(conflicts(state.items, it, ds(new Date()))) : "";
-  $("clashHint").textContent = text;
-  $("clashHint").hidden = !text;
+  const hint = $("clashHint");
+  // La zone est annoncée par les lecteurs d'écran : on n'y touche que si le texte change.
+  if (hint.textContent !== text) hint.textContent = text;
+  hint.hidden = !text;
 }
 
 /**
@@ -170,6 +179,9 @@ function submit(e) {
   else delete it.days;
   if (until) it.until = until;
   else delete it.until;
+  // Hebdo du vendredi finie le jeudi, par exemple : l'élément n'apparaîtrait nulle part.
+  if (!hasOccurrence(it))
+    return fail("Avec cette date de fin, la série n'a aucun jour. Repousse la fin, ou change les jours.");
   if (editing) it.done = doneAfterEdit(editing, it);
   closeForm();
   // Un nouvel élément posé hors de la période affichée : on y va, pour le voir apparaître.
@@ -192,17 +204,20 @@ export function initForm() {
     const n = Number(b.dataset.span);
     const start = field("f-date").value;
     // « 3 jours » : le premier jour compte, la série finit donc deux jours plus tard.
-    field("f-until").value = n && start ? ds(addDays(parse(start), n - 1)) : "";
+    field("f-until").value = n && settled(start) ? ds(addDays(parse(start), n - 1)) : "";
     syncSpan();
     syncClash();
   });
   field("f-until").addEventListener("input", syncSpan);
   field("f-date").addEventListener("input", () => {
-    // La date de départ bouge : la série garde sa durée.
+    // La date de départ bouge : la série garde sa durée. Une date en cours de saisie ne compte pas.
     const start = field("f-date").value;
     const until = field("f-until").value;
-    if (start && lastStart && until) field("f-until").value = ds(addDays(parse(until), daysBetween(lastStart, start)));
-    if (start) lastStart = start;
+    if (settled(start)) {
+      if (settled(until) && settled(lastStart))
+        field("f-until").value = ds(addDays(parse(until), daysBetween(lastStart, start)));
+      lastStart = start;
+    }
     syncSpan();
   });
 

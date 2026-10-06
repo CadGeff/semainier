@@ -153,7 +153,13 @@ export async function mockSupabase(page, init = {}) {
       if (m === "GET") {
         // Réseau lent : la réponse attend `slowItemsGet` millisecondes.
         if (state.slowItemsGet) await new Promise((done) => setTimeout(done, state.slowItemsGet));
-        return json(route, 200, state.items);
+        // Comme PostgREST : seules les colonnes demandées par `select` sont renvoyées.
+        const select = url.searchParams.get("select");
+        const cols = select && select !== "*" ? select.split(",") : null;
+        const rows = cols
+          ? state.items.map((r) => Object.fromEntries(cols.map((c) => [c, r[c] ?? null])))
+          : state.items;
+        return json(route, 200, rows);
       }
       if (m === "POST") {
         for (const row of [].concat(body)) {

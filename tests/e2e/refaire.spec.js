@@ -176,6 +176,98 @@ test.describe("démo", () => {
     await expect(page.getByLabel("Jusqu'au")).toHaveValue("");
   });
 
+  test("retaper l'année de départ au clavier ne fait pas perdre la fin de la série", async ({ page }) => {
+    await page.getByRole("button", { name: "Ajouter un élément" }).click();
+    await page.getByLabel("Date (1re fois)").fill("2026-10-05");
+    await page.getByLabel("Répétition").selectOption("daily");
+    await page.getByRole("button", { name: "1 semaine" }).click();
+
+    // Au clavier, le champ passe par les années 0002, 0020 et 0202 avant d'arriver à 2027.
+    await page.getByLabel("Date (1re fois)").focus();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.type("2027");
+    await expect(page.getByLabel("Date (1re fois)")).toHaveValue("2027-10-05");
+    await expect(page.getByLabel("Jusqu'au")).toHaveValue("2027-10-11");
+    await expect(page.getByRole("button", { name: "1 semaine" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("date de départ effacée puis ressaisie : la série garde sa durée", async ({ page }) => {
+    await page.getByRole("button", { name: "Ajouter un élément" }).click();
+    await page.getByLabel("Date (1re fois)").fill("2026-10-05");
+    await page.getByLabel("Répétition").selectOption("daily");
+    await page.getByRole("button", { name: "2 jours" }).click();
+    await expect(page.getByLabel("Jusqu'au")).toHaveValue("2026-10-06");
+
+    await page.getByLabel("Date (1re fois)").fill("");
+    await expect(page.getByLabel("Jusqu'au")).toHaveValue("2026-10-06");
+    // Sans date de départ, aucune durée ne peut être affirmée : aucun raccourci n'est enfoncé.
+    for (const name of ["2 jours", "3 jours", "1 semaine", "Sans fin"])
+      await expect(page.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
+    await page.getByLabel("Date (1re fois)").fill("2026-10-20");
+    await expect(page.getByLabel("Jusqu'au")).toHaveValue("2026-10-21");
+    await expect(page.getByRole("button", { name: "2 jours" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("une série d'un seul jour est acceptée ; « Sans fin » n'est enfoncé que sans date de fin", async ({ page }) => {
+    await page.getByRole("button", { name: "Ajouter un élément" }).click();
+    await page.getByLabel("Intitulé").fill("Un seul jour");
+    await page.getByLabel("Date (1re fois)").fill("2026-10-01");
+    await page.getByLabel("Répétition").selectOption("daily");
+    await page.getByLabel("Jusqu'au").fill("2026-09-30");
+    await expect(page.getByRole("button", { name: "Sans fin" })).toHaveAttribute("aria-pressed", "false");
+    await page.getByLabel("Jusqu'au").fill("2026-10-01");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(page.locator("#formScrim")).toBeHidden();
+    await expect(todo(page, "2026-10-01")).toContainText("Un seul jour");
+    await expect(todo(page, "2026-10-02")).not.toContainText("Un seul jour");
+  });
+
+  test("une fin qui ne laisse aucun jour à la série est refusée", async ({ page }) => {
+    await page.getByRole("button", { name: "Ajouter un élément" }).click();
+    await page.getByLabel("Intitulé").fill("Piscine");
+    // Jeudi 1er octobre, seul le vendredi coché, fin le jeudi : aucun vendredi dans l'intervalle.
+    await page.getByLabel("Date (1re fois)").fill("2026-10-01");
+    await page.getByLabel("Répétition").selectOption("weekly");
+    await page.locator("#f-d3").uncheck({ force: true });
+    await page.locator("#f-d4").check({ force: true });
+    await page.getByLabel("Jusqu'au").fill("2026-10-01");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(page.locator("#formErr")).toHaveText(
+      "Avec cette date de fin, la série n'a aucun jour. Repousse la fin, ou change les jours.",
+    );
+    await page.getByLabel("Jusqu'au").fill("2026-10-02");
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(todo(page, "2026-10-02")).toContainText("Piscine");
+  });
+
+  test("retirer le dernier jour d'une série qui a une fin la supprime", async ({ page }) => {
+    await page.getByRole("button", { name: "Ajouter un élément" }).click();
+    await page.getByLabel("Intitulé").fill("Deux jours");
+    await page.getByLabel("Date (1re fois)").fill("2026-10-01");
+    await page.getByLabel("Répétition").selectOption("daily");
+    await page.getByRole("button", { name: "2 jours" }).click();
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    const stored = () =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem("semainier.demo.v1")).filter((it) => it.title === "Deux jours"),
+      );
+
+    await todo(page, "2026-10-01").getByRole("button", { name: "Deux jours", exact: true }).click();
+    await page.getByRole("button", { name: "Retirer ce jour" }).click();
+    await expect(todo(page, "2026-10-01")).not.toContainText("Deux jours");
+    await expect(todo(page, "2026-10-02")).toContainText("Deux jours");
+    expect(await stored()).toHaveLength(1);
+
+    // Il ne resterait qu'une série sans aucun jour, que rien ne permettrait de rouvrir.
+    await todo(page, "2026-10-02").getByRole("button", { name: "Deux jours", exact: true }).click();
+    await page.getByRole("button", { name: "Retirer ce jour" }).click();
+    await expect(page.locator(".toast-msg").last()).toHaveText(
+      "« Deux jours » : c'était le dernier jour de la série, elle est supprimée.",
+    );
+    await expect.poll(async () => (await stored()).length).toBe(0);
+  });
+
   test("une fin antérieure au premier jour est refusée", async ({ page }) => {
     await page.getByRole("button", { name: "Ajouter un élément" }).click();
     await page.getByLabel("Intitulé").fill("Série à l'envers");
@@ -243,6 +335,46 @@ test.describe("démo", () => {
     await expect(col(page, "2026-10-01").locator(".ev.block", { hasText: "Dentiste" })).toBeVisible();
   });
 
+  test("le signalement suit les raccourcis de durée et ne reste pas d'une ouverture à l'autre", async ({ page }) => {
+    const hint = page.locator("#clashHint");
+    await page.getByRole("button", { name: "Ajouter un élément" }).click();
+    await page.getByText("Créneau bloqué", { exact: true }).click();
+    await page.getByLabel("Date (1re fois)").fill("2026-10-01");
+    // 08:45–09:00 touche « Deep work » sans le recouvrir ; une demi-heure de plus le recouvre.
+    await page.getByLabel("Début").fill("08:45");
+    await page.getByRole("button", { name: "15 min" }).click();
+    await expect(hint).toBeHidden();
+    await page.getByRole("button", { name: "30 min" }).click();
+    await expect(hint).toContainText("Chevauche « Deep work »");
+
+    await page.getByRole("button", { name: "Annuler" }).click();
+    await page.getByRole("button", { name: "Ajouter un élément" }).click();
+    await expect(hint).toBeHidden();
+  });
+
+  test("un jour retiré de la série modifiée n'est pas signalé", async ({ page }) => {
+    // « Cours d'anglais » (mercredi 14:00–15:30) est déplacé sur « Deep work », le mercredi.
+    const edit = async () => {
+      await page.locator("[data-open]", { hasText: "Cours d'anglais" }).first().click();
+      await page.getByRole("button", { name: "Modifier" }).click();
+    };
+    await edit();
+    await page.getByLabel("Début").fill("10:00");
+    await page.getByLabel("Fin", { exact: true }).fill("11:30");
+    await page.getByLabel("Jusqu'au").fill("2026-10-07");
+    await expect(page.locator("#clashHint")).toHaveText(
+      "Chevauche « Deep work » (09:00–11:00) le mercredi 30 septembre, et d'autres créneaux sur 1 autre jour.",
+    );
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+
+    // On retire le cours d'aujourd'hui : il ne reste que le chevauchement de mercredi prochain.
+    await col(page, TODAY).locator(".ev", { hasText: "Cours d'anglais" }).click();
+    await page.getByRole("button", { name: "Retirer ce jour" }).click();
+    await page.getByRole("button", { name: "Suivant" }).click();
+    await edit();
+    await expect(page.locator("#clashHint")).toHaveText("Chevauche « Deep work » (09:00–11:00) le mercredi 7 octobre.");
+  });
+
   test("modifier un créneau ne le signale pas contre lui-même", async ({ page }) => {
     await col(page, TODAY).locator(".ev", { hasText: "Cours d'anglais" }).click();
     await page.getByRole("button", { name: "Modifier" }).click();
@@ -292,6 +424,26 @@ test.describe("avec Supabase", () => {
       }),
     );
     await login(page);
+    await expect(page.locator(".toast-msg").last()).toHaveText(
+      "La base de données n'est pas à jour : relance supabase/schema.sql dans le SQL Editor de Supabase, puis recharge la page.",
+    );
+  });
+
+  test("base pas encore mise à niveau : l'enregistrement le dit aussi", async ({ page }) => {
+    await mockSupabase(page, { items: [row({})] });
+    await login(page);
+    await expect(todo(page, TODAY)).toContainText("Lecture");
+    await page.route("**/rest/v1/items**", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            headers: { "access-control-allow-origin": "*" },
+            body: JSON.stringify({ code: "PGRST204", message: "Could not find the 'until_date' column of 'items'" }),
+          })
+        : route.fallback(),
+    );
+    await todo(page, TODAY).getByRole("checkbox", { name: "Marquer « Lecture » comme faite" }).click();
     await expect(page.locator(".toast-msg").last()).toHaveText(
       "La base de données n'est pas à jour : relance supabase/schema.sql dans le SQL Editor de Supabase, puis recharge la page.",
     );

@@ -53,13 +53,15 @@ export function readExport(text) {
 }
 
 /**
- * Empreinte du contenu d'un élément, hors identifiant et hors coches.
- * Deux éléments de même empreinte s'affichent à l'identique dans le planning.
+ * Empreinte du contenu d'un élément, hors identifiant, coches et jours retirés.
+ * Deux éléments de même empreinte ont le même intitulé, le même type, la même catégorie,
+ * les mêmes heures et la même règle de répétition, fin comprise.
  * @param {Item} it
  */
 export function signature(it) {
   const days = it.recur === "weekly" ? [...(it.days || [])].sort((a, b) => a - b) : [];
-  return JSON.stringify([it.title, it.kind, it.start, it.from || "", it.to || "", it.recur, days, it.cat]);
+  const until = it.recur && it.recur !== "none" ? it.until || "" : "";
+  return JSON.stringify([it.title, it.kind, it.start, it.from || "", it.to || "", it.recur, days, it.cat, until]);
 }
 
 /**

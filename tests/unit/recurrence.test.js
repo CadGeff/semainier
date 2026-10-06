@@ -100,3 +100,30 @@ test("libellé d'une série qui a une fin", () => {
   );
   assert.equal(R.recurText({ start: "2026-10-03", recur: "none", until: "2026-10-05" }), "Une seule fois");
 });
+
+test("écart en jours : exact à travers les changements d'heure, les mois et les années", () => {
+  process.env.TZ = "Europe/Paris";
+  assert.equal(R.daysBetween("2026-10-05", "2026-10-05"), 0);
+  assert.equal(R.daysBetween("2026-10-05", "2026-10-11"), 6);
+  assert.equal(R.daysBetween("2026-10-11", "2026-10-05"), -6);
+  // Nuit du 24 au 25 octobre 2026 : une journée de 25 heures. Nuit du 28 au 29 mars : 23 heures.
+  assert.equal(R.daysBetween("2026-10-24", "2026-10-26"), 2);
+  assert.equal(R.daysBetween("2026-03-28", "2026-03-30"), 2);
+  assert.equal(R.daysBetween("2026-10-05", "2027-10-05"), 365);
+  assert.equal(R.daysBetween("2028-02-28", "2028-03-01"), 2, "année bissextile");
+});
+
+test("une série qui a une fin peut ne plus avoir aucun jour", () => {
+  assert.equal(R.hasOccurrence({ start: "2026-10-01", recur: "none" }), true);
+  assert.equal(R.hasOccurrence({ start: "2026-10-01", recur: "daily" }), true, "sans fin");
+  assert.equal(R.hasOccurrence({ start: "2026-10-01", recur: "daily", until: "2026-10-01" }), true, "un seul jour");
+  const deux = { start: "2026-10-01", recur: "daily", until: "2026-10-02" };
+  assert.equal(R.hasOccurrence({ ...deux, skipped: { "2026-10-01": true } }), true);
+  assert.equal(R.hasOccurrence({ ...deux, skipped: { "2026-10-01": true, "2026-10-02": true } }), false);
+  // Jeudi 1er octobre, seul le vendredi coché : finie le jeudi, elle n'a aucun jour ; le vendredi, un.
+  const vendredis = { start: "2026-10-01", recur: "weekly", days: [4] };
+  assert.equal(R.hasOccurrence({ ...vendredis, until: "2026-10-01" }), false);
+  assert.equal(R.hasOccurrence({ ...vendredis, until: "2026-10-02" }), true);
+  // Les jours retirés d'une série sans fin sont en nombre fini : il en reste toujours.
+  assert.equal(R.hasOccurrence({ start: "2026-10-01", recur: "daily", skipped: { "2026-10-01": true } }), true);
+});

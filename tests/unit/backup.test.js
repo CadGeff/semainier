@@ -140,3 +140,31 @@ test("rappel : jamais, récent, en retard", () => {
   assert.equal(late.text, "Dernière sauvegarde : il y a 60 jours. Pense à en refaire une.");
   assert.equal(backupReminder("2027-01-01T00:00:00", NOW).text, "Dernière sauvegarde : aujourd'hui.");
 });
+
+test("fin de série : conservée par l'export et l'import, et distinguée par le dédoublonnage", () => {
+  const sansFin = {
+    id: "a",
+    title: "Lecture",
+    kind: "task",
+    start: "2026-10-03",
+    recur: "daily",
+    cat: "gris",
+    done: {},
+    skipped: {},
+  };
+  const bornee = { ...sansFin, id: "b", until: "2026-10-05" };
+  const data = buildExport([bornee], LABELS, NOW);
+  assert.equal(data.items[0].until, "2026-10-05");
+  const read = readExport(JSON.stringify(data));
+  if (read.ok === false) return assert.fail(read.error);
+  assert.equal(read.items[0].until, "2026-10-05");
+
+  assert.notEqual(signature(sansFin), signature(bornee));
+  assert.notEqual(signature(bornee), signature({ ...bornee, until: "2026-10-06" }));
+  // La même série, bornée dans la sauvegarde et sans fin dans le planning : ce n'est pas un doublon.
+  assert.deepEqual(withoutDuplicates([bornee], [sansFin]), { fresh: [bornee], duplicates: 0 });
+  assert.deepEqual(withoutDuplicates([bornee], [{ ...bornee, id: "c" }]), { fresh: [], duplicates: 1 });
+  // Une date de fin restée sur un élément ponctuel n'a pas de sens : elle ne le distingue pas.
+  const ponctuel = { ...sansFin, recur: "none" };
+  assert.equal(signature(ponctuel), signature({ ...ponctuel, until: "2026-10-05" }));
+});

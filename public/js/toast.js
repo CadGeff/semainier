@@ -1,5 +1,6 @@
 // Notifications : encarts empilés en bas de l'écran, le plus récent en bas.
-// Une confirmation disparaît seule ; une erreur ou un résultat d'import reste jusqu'au clic sur « OK ».
+// Une confirmation disparaît seule ; une erreur, un résultat d'import ou un chevauchement signalé
+// restent jusqu'au clic sur « OK ».
 
 import { state, dropStatus } from "./state.js";
 import { $, el } from "./dom.js";

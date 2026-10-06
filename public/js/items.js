@@ -1,7 +1,7 @@
 // Modèle d'un élément du planning : constantes, validation des imports, données d'exemple.
 // Aucune dépendance au DOM : testé directement sous Node.
 
-import { ds, parse, addDays, dow, mondayOf, toMin } from "./recurrence.js";
+import { ds, parse, addDays, dow, mondayOf, toMin, hasOccurrence } from "./recurrence.js";
 import { newId } from "./ids.js";
 
 /**
@@ -96,7 +96,8 @@ export function sanitize(raw) {
       for (const k of Object.keys(r[f])) if (isDate(k) && r[f][k] === true) it[f][k] = true;
     }
   }
-  return it;
+  // Une série finie dont il ne reste aucun jour n'apparaîtrait nulle part : on ne l'importe pas.
+  return hasOccurrence(it) ? it : null;
 }
 
 /**

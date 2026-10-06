@@ -90,7 +90,7 @@
   --login-sheet: var(--sheet);
   --login-edge: var(--rule);
   /* Petits textes rouges (erreurs, suppression) : plus soutenu que la marge, lisible en petit corps.
-     --err-fill est le même rouge en aplat, sous un texte blanc. */
+     --err-fill est le rouge des aplats, sous un texte blanc : le même en clair, celui de la marge en sombre. */
   --err: #c23a55;
   --err-fill: #c23a55;
   --login-err: var(--err);
@@ -1055,7 +1055,8 @@ kbd {
   align-items: center;
   gap: 8px 18px;
   font-size: 12.5px;
-  color: var(--ink-3);
+  /* Posé sur la page et non sur une feuille : il lui faut l'encre secondaire pour rester lisible. */
+  color: var(--ink-2);
 }
 .foot p {
   margin: 0;
@@ -2051,6 +2052,10 @@ kbd {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--accent-ink);
+  }
+  /* Même raison pour son anneau de focus : celui du bandeau serait invisible sur la page. */
+  #add:focus-visible {
+    outline-color: var(--focus);
   }
   /* Un seul jour affiché : le cadre du jour courant n'a rien à distinguer. */
   .todo.today::after,

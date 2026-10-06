@@ -14,6 +14,8 @@ const addDays = (d, n) => {
   x.setDate(x.getDate() + n);
   return x;
 };
+/** Nombre de jours de `a` à `b` ("AAAA-MM-JJ"). Arrondi : un changement d'heure décale l'écart d'une heure. */
+const daysBetween = (a, b) => Math.round((parse(b).getTime() - parse(a).getTime()) / 864e5);
 /** Jour de la semaine, 0 = lundi … 6 = dimanche */
 const dow = (d) => (d.getDay() + 6) % 7;
 const mondayOf = (d) => addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate()), -dow(d));
@@ -106,7 +108,37 @@ function recurText(it) {
   return `${rhythm(it)}, jusqu'au ${u.getDate() === 1 ? "1er" : u.getDate()} ${MONTHS[u.getMonth()]}${year}`;
 }
 
+/**
+ * L'élément a-t-il au moins une occurrence ? Une série sans fin en a toujours (les jours retirés
+ * sont en nombre fini). Une série qui a une fin peut ne plus en avoir : tous ses jours retirés,
+ * ou une fin placée avant son premier jour utile (hebdo du vendredi, finie le jeudi).
+ */
+function hasOccurrence(it) {
+  const until = untilOf(it);
+  if (!until) return true;
+  for (let day = it.start; day <= until; day = ds(addDays(parse(day), 1))) if (occurs(it, day)) return true;
+  return false;
+}
+
 /** La tâche est-elle cochée pour ce jour ? */
 const isDone = (it, day) => !!(it.done && it.done[day]);
 
-export { pad, ds, parse, addDays, dow, mondayOf, isoWeek, toMin, fromMin, DN, DL, occurs, recurText, untilOf, isDone };
+export {
+  pad,
+  ds,
+  parse,
+  addDays,
+  daysBetween,
+  dow,
+  mondayOf,
+  isoWeek,
+  toMin,
+  fromMin,
+  DN,
+  DL,
+  occurs,
+  hasOccurrence,
+  recurText,
+  untilOf,
+  isDone,
+};

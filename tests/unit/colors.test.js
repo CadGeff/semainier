@@ -34,6 +34,22 @@ test("bandeau : le thème sombre ne redéfinit pas ses couleurs", () => {
   }
 });
 
+test("thème sombre : ses deux définitions (réglage du système, choix dans le menu) sont identiques", () => {
+  /** Déclarations d'un bloc, dans l'ordre, sans indentation ni commentaires. */
+  const declarations = (start) =>
+    css
+      .split(start)[1]
+      .split("\n}")[0]
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith("--") || line.startsWith("color-scheme"));
+  const system = declarations(':root:not([data-theme="light"]) {');
+  const chosen = declarations(':root[data-theme="dark"] {');
+  assert.ok(system.length > 20, "bloc du réglage système introuvable");
+  assert.deepEqual(chosen, system);
+});
+
 test("icône : son fond est le bleu du bandeau, son chiffre le blanc cassé du week-end", () => {
   const fills = [...icon.matchAll(/fill="(#[0-9a-fA-F]{6})"/g)].map((m) => m[1].toLowerCase());
   assert.ok(fills.includes(token("band")), "le fond de l'icône n'est pas la couleur du bandeau");

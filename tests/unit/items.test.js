@@ -108,3 +108,16 @@ test("import : la date de fin n'est gardée que pour une série, et pas avant so
   assert.equal("until" in sanitize({ ...base, recur: "daily", until: 20261005 }), false, "mauvais type");
   assert.equal("until" in sanitize({ ...base, recur: "daily" }), false);
 });
+
+test("import : une série finie dont il ne reste aucun jour est rejetée", () => {
+  const vendredis = { title: "Piscine", kind: "task", start: "2026-10-01", recur: "weekly", days: [4] };
+  assert.equal(sanitize({ ...vendredis, until: "2026-10-01" }), null, "finie avant son premier vendredi");
+  assert.notEqual(sanitize({ ...vendredis, until: "2026-10-02" }), null);
+  const deux = { title: "Lecture", kind: "task", start: "2026-10-01", recur: "daily", until: "2026-10-02" };
+  assert.equal(
+    sanitize({ ...deux, skipped: { "2026-10-01": true, "2026-10-02": true } }),
+    null,
+    "tous ses jours retirés",
+  );
+  assert.notEqual(sanitize({ ...deux, skipped: { "2026-10-01": true } }), null);
+});

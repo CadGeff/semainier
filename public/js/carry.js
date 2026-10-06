@@ -11,7 +11,11 @@ export const CARRY_DAYS = 7;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Tâche « une seule fois » : la seule qui se reporte (une récurrente revient d'elle-même). @param {Item} it */
+/**
+ * Tâche « une seule fois » : la seule qui se reporte. Une tâche récurrente ne se reporte pas, pas même
+ * la dernière occurrence d'une série qui a une fin : chaque jour d'une série vaut pour lui seul.
+ * @param {Item} it
+ */
 export const isOneOff = (it) => it.kind === "task" && (!it.recur || it.recur === "none");
 
 /**

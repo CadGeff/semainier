@@ -1,6 +1,6 @@
 // Fenêtre de détail d'une occurrence : cocher, refaire, retirer ce jour, modifier, supprimer.
 
-import { ds, parse, recurText } from "./recurrence.js";
+import { ds, parse, recurText, hasOccurrence } from "./recurrence.js";
 import { isCarrying, isOneOff, doneDay, taskDone } from "./carry.js";
 import { conflicts, conflictText } from "./conflicts.js";
 import { redoDay, redoLabel, redoWhen, redoCopy } from "./redo.js";
@@ -91,8 +91,16 @@ export function initDetail() {
     });
   };
   $("d-skip").onclick = () => {
-    setDayFlag(cur.id, "skipped", cur.day, true);
+    const it = findItem(cur.id);
+    const { id, day } = cur;
     closeDetail();
+    if (!it) return;
+    // Dernier jour d'une série qui a une fin : il ne resterait qu'un élément sans aucune occurrence,
+    // qu'aucun écran ne permettrait plus d'ouvrir. On supprime donc la série.
+    if (!hasOccurrence({ ...it, skipped: { ...(it.skipped || {}), [day]: true } })) {
+      removeItem(id);
+      setStatus(`« ${it.title} » : c'était le dernier jour de la série, elle est supprimée.`);
+    } else setDayFlag(id, "skipped", day, true);
   };
   $("d-edit").onclick = () => {
     const it = findItem(cur.id);
