@@ -168,3 +168,21 @@ test("fin de série : conservée par l'export et l'import, et distinguée par le
   const ponctuel = { ...sansFin, recur: "none" };
   assert.equal(signature(ponctuel), signature({ ...ponctuel, until: "2026-10-05" }));
 });
+
+test("coche tardive d'une série courte : elle survit à l'export puis à l'import", () => {
+  // Du 27 au 29 septembre, dernier jour fait le 30 : la coche est postérieure à la fin de la série.
+  const fait = {
+    id: "a",
+    title: "Trois soirs",
+    kind: "task",
+    start: "2026-09-27",
+    until: "2026-09-29",
+    recur: "daily",
+    cat: "gris",
+    done: { "2026-09-27": true, "2026-09-30": true },
+    skipped: {},
+  };
+  const read = readExport(JSON.stringify(buildExport([fait], LABELS, NOW)));
+  if (read.ok === false) return assert.fail(read.error);
+  assert.deepEqual(read.items[0].done, fait.done);
+});

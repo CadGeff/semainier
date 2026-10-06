@@ -108,17 +108,33 @@ function recurText(it) {
   return `${rhythm(it)}, jusqu'au ${u.getDate() === 1 ? "1er" : u.getDate()} ${MONTHS[u.getMonth()]}${year}`;
 }
 
+/** Durée, en jours, en deçà de laquelle une série qui a une fin est « courte ». */
+const SHORT_SERIES_DAYS = 7;
+
+/**
+ * Série courte : elle a une fin, et tient en SHORT_SERIES_DAYS jours au plus, du premier au dernier.
+ * Elle est traitée comme une suite d'éléments ponctuels, et non comme une habitude : écrite en
+ * toutes lettres dans le mois, listée dans « À venir », et son dernier jour non fait se reporte.
+ */
+const isShortSeries = (it) => {
+  const until = untilOf(it);
+  return !!until && daysBetween(it.start, until) < SHORT_SERIES_DAYS;
+};
+
+/** Dernier jour où une série qui a une fin a lieu, ou null (série sans fin, ou sans aucun jour). */
+function lastOccurrence(it) {
+  const until = untilOf(it);
+  if (!until) return null;
+  for (let day = until; day >= it.start; day = ds(addDays(parse(day), -1))) if (occurs(it, day)) return day;
+  return null;
+}
+
 /**
  * L'élément a-t-il au moins une occurrence ? Une série sans fin en a toujours (les jours retirés
  * sont en nombre fini). Une série qui a une fin peut ne plus en avoir : tous ses jours retirés,
  * ou une fin placée avant son premier jour utile (hebdo du vendredi, finie le jeudi).
  */
-function hasOccurrence(it) {
-  const until = untilOf(it);
-  if (!until) return true;
-  for (let day = it.start; day <= until; day = ds(addDays(parse(day), 1))) if (occurs(it, day)) return true;
-  return false;
-}
+const hasOccurrence = (it) => !untilOf(it) || lastOccurrence(it) !== null;
 
 /** La tâche est-elle cochée pour ce jour ? */
 const isDone = (it, day) => !!(it.done && it.done[day]);
@@ -138,6 +154,9 @@ export {
   DL,
   occurs,
   hasOccurrence,
+  lastOccurrence,
+  isShortSeries,
+  SHORT_SERIES_DAYS,
   recurText,
   untilOf,
   isDone,

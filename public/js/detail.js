@@ -1,10 +1,10 @@
 // Fenêtre de détail d'une occurrence : cocher, refaire, retirer ce jour, modifier, supprimer.
 
 import { ds, parse, recurText, hasOccurrence } from "./recurrence.js";
-import { isCarrying, isOneOff, doneDay, taskDone } from "./carry.js";
+import { isCarrying, isOneOff, carryDay, doneDay, taskDone } from "./carry.js";
 import { conflicts, conflictText } from "./conflicts.js";
 import { redoDay, redoLabel, redoWhen, redoCopy } from "./redo.js";
-import { state, catLabel, setDayFlag, toggleDone, removeItem, findItem, putItem, setStatus } from "./state.js";
+import { state, catLabel, skipDay, toggleDone, removeItem, findItem, putItem, setStatus } from "./state.js";
 import { $, esc, arm, disarm, isArmed, focusSoon, registerDialog } from "./dom.js";
 import { closeMenu } from "./menu.js";
 import { openForm } from "./form.js";
@@ -20,19 +20,22 @@ export function openDetail(id, day) {
   closeMenu();
   $("detTitle").textContent = it.title;
   $("det").dataset.cat = it.cat || "bleu";
-  // Une tâche ponctuelle garde sa date prévue, même ouverte depuis le jour où elle est reportée.
-  const date = isOneOff(it) ? it.start : day;
+  // L'occurrence qui se reporte (tâche ponctuelle, dernier jour d'une série courte) garde sa date
+  // prévue, même ouverte depuis le jour où elle est reportée.
+  const from = carryDay(it);
+  const single = from !== null && day >= from;
+  const date = single ? from : day;
   const today = ds(new Date());
   cur = { id, day, redo: redoDay(date, today) };
   $("d-redo").textContent = redoLabel(cur.redo, today);
   const done = it.kind === "task" && taskDone(it, day);
-  const doneOn = isOneOff(it) ? doneDay(it) : null;
+  const doneOn = single ? doneDay(it) : null;
   let status = "";
   if (it.kind === "task") {
-    if (doneOn && doneOn !== it.start) status = `Faite le <b>${esc(fmtLong.format(parse(doneOn)))}</b>, après report`;
+    if (doneOn && doneOn !== from) status = `Faite le <b>${esc(fmtLong.format(parse(doneOn)))}</b>, après report`;
     else if (isOneOff(it)) status = `État : <b>${done ? "faite" : "à faire"}</b>`;
     else status = `État ce jour : <b>${done ? "faite" : "à faire"}</b>`;
-    if (isCarrying(it, today)) status += " · reportée à aujourd'hui";
+    if (single && isCarrying(it, today)) status += " · reportée à aujourd'hui";
   }
   $("detMeta").innerHTML = `
     <span><b>${esc(fmtLong.format(parse(date)))}</b>${it.from ? ` · ${esc(it.from)} → ${esc(it.to)}` : " · sans heure"}</span>
@@ -40,7 +43,8 @@ export function openDetail(id, day) {
     <span>${esc(recurText(it))}</span>
     ${status ? `<span>${status}</span>` : ""}`;
   const recurring = it.recur && it.recur !== "none";
-  $("d-skip").hidden = !recurring;
+  // « Retirer ce jour » vise le jour affiché : pas de sens depuis le jour où l'occurrence est reportée.
+  $("d-skip").hidden = !recurring || day !== date;
   disarm($("d-del"), recurring ? "Supprimer la série" : "Supprimer");
   const t = $("d-toggle");
   t.hidden = it.kind !== "task";
@@ -100,7 +104,7 @@ export function initDetail() {
     if (!hasOccurrence({ ...it, skipped: { ...(it.skipped || {}), [day]: true } })) {
       removeItem(id);
       setStatus(`« ${it.title} » : c'était le dernier jour de la série, elle est supprimée.`);
-    } else setDayFlag(id, "skipped", day, true);
+    } else skipDay(id, day);
   };
   $("d-edit").onclick = () => {
     const it = findItem(cur.id);

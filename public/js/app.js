@@ -2,7 +2,7 @@
 // le service worker, puis démarre (session, chargement des données).
 
 import { connectView } from "./state.js";
-import { closeOpenDialog, anyDialogOpen, $ } from "./dom.js";
+import { closeOpenDialog, anyDialogOpen, initFocusReturn, $ } from "./dom.js";
 import { initBoard, render, goPrev, goNext, goToday, newItem } from "./board.js";
 import { initMenu, closeMenu, isMenuOpen } from "./menu.js";
 import { renderToast, dismissToast } from "./toast.js";
@@ -22,6 +22,7 @@ initCategories();
 initAccount();
 initSession();
 initBack();
+initFocusReturn();
 
 // ------------------------------------------------------------ Clavier
 const SHORTCUTS = { ArrowLeft: goPrev, ArrowRight: goNext, t: goToday, n: newItem };

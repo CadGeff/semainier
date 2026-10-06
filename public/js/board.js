@@ -21,9 +21,9 @@ import { layout } from "./layout.js";
 import { monthWeeks, addMonths, blockMinutes, isRecurring } from "./month.js";
 import { overviewHtml } from "./views.js";
 import { Store } from "./store.js";
-import { carriedFor, isCarrying, taskDone } from "./carry.js";
+import { carriedFor, carryDay, isCarriedFrom, taskDone } from "./carry.js";
 import { state, catLabel, toggleDone, todayDate } from "./state.js";
-import { $, esc, applyGeometry, anyDialogOpen, CHECK } from "./dom.js";
+import { $, esc, applyGeometry, anyDialogOpen, selectorsOf, CHECK } from "./dom.js";
 import { openDetail } from "./detail.js";
 import { openForm } from "./form.js";
 import { openCats } from "./categories.js";
@@ -101,23 +101,13 @@ const HINTS = {
 };
 
 /**
- * Repère l'élément qui a le focus, pour le lui rendre après un rendu qui remplace le HTML.
+ * Repère l'élément du planning qui a le focus, pour le lui rendre après un rendu qui remplace le HTML.
  * @returns {string | null} sélecteur CSS de l'élément équivalent dans le nouveau rendu
  */
 function focusKey() {
   const a = document.activeElement;
   if (!(a instanceof HTMLElement) || !a.closest("#board, #overview, #legend, #strip")) return null;
-  if (a.id) return `#${CSS.escape(a.id)}`;
-  const data = Object.entries(a.dataset);
-  if (!data.length) return null;
-  const zone = a.closest("#board, #overview, #legend, #strip");
-  const attrs = data
-    .filter(([k]) => !["top", "height", "lane", "lanes"].includes(k))
-    .map(([k, v]) => `[data-${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}="${CSS.escape(v ?? "")}"]`)
-    .join("");
-  // La classe distingue la case à cocher du titre d'un même élément.
-  const cls = a.classList.length ? `.${CSS.escape(a.classList[0])}` : "";
-  return `#${zone.id} ${a.tagName.toLowerCase()}${cls}${attrs}`;
+  return selectorsOf(a)[0] || null;
 }
 const hourPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hour")) || 52;
 const occsFor = (day) => state.items.filter((it) => occurs(it, day));
@@ -246,7 +236,7 @@ function renderGrid(week) {
     if (!p.untimed.length && !p.carried.length) h += `<li class="empty">—</li>`;
     for (const it of p.carried) {
       const dn = taskDone(it, p.s);
-      const from = fmtFrom.format(parse(it.start));
+      const from = fmtFrom.format(parse(carryDay(it)));
       h += `<li class="carried${dn ? " done" : ""}${dim(it)}" data-cat="${esc(it.cat || "gris")}">
         <button class="chk" role="checkbox" aria-checked="${dn}" aria-label="Marquer « ${esc(it.title)} » comme faite, ${dn ? "prévue" : "reportée depuis"} ${esc(from)}" data-toggle="${esc(it.id)}" data-day="${p.s}">${CHECK}</button>
         <span class="t-body">
@@ -261,7 +251,7 @@ function renderGrid(week) {
         <button class="chk" role="checkbox" aria-checked="${dn}" aria-label="Marquer « ${esc(it.title)} » comme faite" data-toggle="${esc(it.id)}" data-day="${p.s}">${CHECK}</button>
         <button class="t-title" data-open="${esc(it.id)}" data-day="${p.s}">${esc(it.title)}</button>
         ${isRecurring(it) ? `<span class="rec" title="${esc(recurText(it))}">↻</span>` : ""}
-        ${isCarrying(it, todayS) ? `<span class="rec" role="img" aria-label="Reportée à aujourd'hui" title="Non faite : reportée à aujourd'hui">↷</span>` : ""}
+        ${isCarriedFrom(it, p.s, todayS) ? `<span class="rec" role="img" aria-label="Reportée à aujourd'hui" title="Non faite : reportée à aujourd'hui">↷</span>` : ""}
       </li>`;
     }
     h += `</ul></div>`;
@@ -283,7 +273,7 @@ function renderGrid(week) {
       const top = y(s);
       const ht = Math.max(((en - s) / 60) * HOUR - 2, 20);
       const dn = e.kind === "task" && taskDone(e, p.s);
-      const moved = isCarrying(e, todayS);
+      const moved = isCarriedFrom(e, p.s, todayS);
       const tip = `${e.title} · ${e.from}–${e.to} · ${catLabel(e.cat)}`;
       h += `<div class="ev ${e.kind === "task" ? "task" : "block"}${ht < 40 ? " short" : ""}${dn ? " done" : ""}${dim(e)}" role="button" tabindex="0"
         data-open="${esc(e.id)}" data-day="${p.s}" data-cat="${esc(e.cat || "bleu")}" title="${esc(tip)}"

@@ -72,7 +72,7 @@ function routineMarks(routine, day, narrow) {
 const dayNames = (short = false) =>
   DN.map((n, i) => `<div class="mh${i >= 5 ? " weekend" : ""}" aria-hidden="true">${short ? n[0] : n}</div>`).join("");
 
-/** Grille du mois sur grand écran : éléments ponctuels écrits, habitudes en marques. */
+/** Grille du mois sur grand écran : éléments ponctuels et séries courtes écrits, habitudes en marques. */
 function monthGrid(today) {
   const month = state.sel.getMonth();
   // Première case de la grille : souvent un jour du mois précédent, parfois de l'année précédente.
@@ -140,7 +140,7 @@ function dayPanel(day, today) {
 }
 
 /**
- * Liste « À venir » : éléments ponctuels des prochaines semaines, regroupés par semaine.
+ * Liste « À venir » : éléments ponctuels et jours des séries courtes des prochaines semaines, regroupés par semaine.
  * @param {string} today @param {boolean} short  s'arrêter à deux semaines, avec un lien pour la suite
  */
 function agenda(today, short) {

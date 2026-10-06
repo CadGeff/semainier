@@ -80,7 +80,11 @@ export function registerDialog(scrimId, close) {
   dialogs.set(scrimId, close);
   const scrim = $(scrimId);
   scrim.addEventListener("mousedown", (e) => {
-    if (e.target === scrim) close();
+    if (e.target !== scrim) return;
+    // Sans l'action par défaut : le navigateur retirerait le focus juste après qu'on l'a rendu
+    // à l'élément d'où la fenêtre a été ouverte.
+    e.preventDefault();
+    close();
   });
 }
 
@@ -96,3 +100,80 @@ export function closeOpenDialog() {
 }
 
 export const anyDialogOpen = () => !!document.querySelector(".scrim:not([hidden])");
+
+// ------------------------------------------------------------ Retrouver un élément
+// Le planning est redessiné en remplaçant son HTML : pour rendre le focus à un élément, il faut
+// de quoi retrouver son équivalent dans le nouveau rendu.
+
+/** Attributs data-* qui portent la géométrie du rendu : ils ne désignent rien. */
+const GEOMETRY = ["top", "height", "lane", "lanes", "pct"];
+/** Régions qui montrent chacune leur exemplaire d'un même élément (le mois et « À venir », par exemple). */
+const REGIONS = ".agenda, .month, .dayp, .wlist";
+
+/**
+ * Sélecteurs CSS de l'équivalent de `el` dans un autre rendu, du plus précis au plus souple :
+ * d'abord le même élément le même jour, puis le même élément un autre jour (il a pu être déplacé).
+ * Toujours dans la même région de la page. Vide si rien ne l'identifie.
+ * @param {HTMLElement} el
+ * @returns {string[]}
+ */
+export function selectorsOf(el) {
+  if (el.id) return [`#${CSS.escape(el.id)}`];
+  const data = Object.entries(el.dataset).filter(([k]) => !GEOMETRY.includes(k));
+  if (!data.length) return [];
+  const attr = ([k, v]) => `[data-${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}="${CSS.escape(v ?? "")}"]`;
+  const holder = el.parentElement?.closest(`${REGIONS}, [id]`);
+  const scope = !holder ? "" : holder.id ? `#${CSS.escape(holder.id)} ` : `.${CSS.escape(holder.classList[0])} `;
+  // La classe distingue la case à cocher du titre d'un même élément.
+  const own = `${scope}${el.tagName.toLowerCase()}${el.classList.length ? `.${CSS.escape(el.classList[0])}` : ""}`;
+  const exact = own + data.map(attr).join("");
+  const anyDay =
+    own +
+    data
+      .filter(([k]) => k !== "day")
+      .map(attr)
+      .join("");
+  return "open" in el.dataset && anyDay !== exact ? [exact, anyDay] : [exact];
+}
+
+// ------------------------------------------------------------ Retour du focus
+// Au clavier, fermer une fenêtre doit ramener là d'où on l'a ouverte, et non en haut de la page.
+
+/**
+ * @param {Element | null} el  élément qui a le focus
+ * @returns {(() => HTMLElement | null) | null}  de quoi le retrouver plus tard, s'il est encore affiché
+ */
+function locatorOf(el) {
+  if (!(el instanceof HTMLElement) || el === document.body) return null;
+  // Une entrée du menu disparaît avec lui : on revient au bouton qui l'ouvre.
+  const selectors = el.closest("#menu") ? ["#menuBtn"] : selectorsOf(el);
+  if (!selectors.length) return null;
+  return () => {
+    for (const selector of selectors) {
+      const found = document.querySelector(selector);
+      if (found instanceof HTMLElement && found.getClientRects().length) return found;
+    }
+    return null;
+  };
+}
+
+/** Rend le focus à l'élément d'origine quand la dernière fenêtre se ferme (appelé une fois au démarrage). */
+export function initFocusReturn() {
+  /** @type {(() => HTMLElement | null) | null} */
+  let origin = null;
+  let wasOpen = false;
+  // Les changements d'un même geste arrivent groupés : passer du détail au formulaire
+  // (une fenêtre se ferme, l'autre s'ouvre) ne compte pas comme une fermeture.
+  const observer = new MutationObserver(() => {
+    const open = anyDialogOpen();
+    if (open && !wasOpen) origin = locatorOf(document.activeElement);
+    if (!open && wasOpen) {
+      // Sans défilement : la page ne doit pas bouger parce qu'une fenêtre s'est fermée.
+      origin?.()?.focus({ preventScroll: true });
+      origin = null;
+    }
+    wasOpen = open;
+  });
+  for (const scrim of document.querySelectorAll(".scrim"))
+    observer.observe(scrim, { attributes: true, attributeFilter: ["hidden"] });
+}

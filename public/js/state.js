@@ -4,8 +4,7 @@
 
 import { Store } from "./store.js";
 import { DEFAULT_LABELS } from "./items.js";
-import { isDone } from "./recurrence.js";
-import { isOneOff, doneDay } from "./carry.js";
+import { doneAfterToggle, doneAfterSkip } from "./carry.js";
 
 /** @import { Item } from "./items.js" */
 
@@ -127,30 +126,27 @@ export function putItem(it) {
 }
 
 /**
- * Coche / décoche un jour (`done`) ou retire un jour d'une série (`skipped`).
- * @param {string} id @param {"done"|"skipped"} fieldName @param {string} day @param {boolean} on
+ * Retire le jour `day` d'une série. Les coches qui le concernaient partent avec lui (règles dans carry.js).
+ * @param {string} id @param {string} day
  */
-export function setDayFlag(id, fieldName, day, on) {
+export function skipDay(id, day) {
   const it = state.items.find((x) => x.id === id);
   if (!it) return;
-  const map = { ...(it[fieldName] || {}) };
-  if (on) map[day] = true;
-  else delete map[day];
-  it[fieldName] = map;
+  it.done = doneAfterSkip(it, day);
+  it.skipped = { ...(it.skipped || {}), [day]: true };
   render();
   return queue(id, () => Store.save(clone(it)));
 }
 
 /**
- * Coche ou décoche une tâche pour le jour `day`. Une tâche ponctuelle n'a qu'un état :
- * la cocher retient le jour où elle a été faite, la décocher l'efface, où qu'on clique.
+ * Coche ou décoche une tâche pour le jour `day` (règles dans carry.js : une tâche ponctuelle,
+ * ou le dernier jour d'une série courte, n'a qu'un état où qu'on clique).
  * @param {string} id @param {string} day
  */
 export function toggleDone(id, day) {
   const it = state.items.find((x) => x.id === id);
   if (!it) return;
-  if (!isOneOff(it)) return setDayFlag(id, "done", day, !isDone(it, day));
-  it.done = doneDay(it) === null ? { [day]: true } : {};
+  it.done = doneAfterToggle(it, day);
   render();
   return queue(id, () => Store.save(clone(it)));
 }

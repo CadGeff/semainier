@@ -1,8 +1,8 @@
 // Vue mois et liste « À venir » : fonctions pures, sans DOM ni réseau.
-// Le mois distingue ce qui sort de l'ordinaire (éléments ponctuels, écrits en toutes lettres)
-// des habitudes (éléments récurrents, réduits à une marque de couleur).
+// Le mois distingue ce qui sort de l'ordinaire (éléments ponctuels et séries courtes, écrits en
+// toutes lettres) des habitudes (séries longues ou sans fin, réduites à une marque de couleur).
 
-import { ds, parse, addDays, mondayOf, occurs, toMin } from "./recurrence.js";
+import { ds, parse, addDays, mondayOf, occurs, toMin, isShortSeries } from "./recurrence.js";
 import { carriedFor, taskDone } from "./carry.js";
 
 /** @import { Item } from "./items.js" */
@@ -11,11 +11,13 @@ import { carriedFor, taskDone } from "./carry.js";
 export const UPCOMING_DAYS = 35;
 /** Sur un écran étroit, la liste s'arrête d'abord à deux semaines. */
 export const UPCOMING_SHORT_DAYS = 14;
-/** Nombre d'éléments ponctuels écrits dans une case du mois ; le reste est compté. */
+/** Nombre d'éléments écrits en toutes lettres dans une case du mois ; le reste est compté. */
 export const CELL_MAX = 3;
 
 /** L'élément revient-il régulièrement ? */
 export const isRecurring = (/** @type {Item} */ it) => !!it.recur && it.recur !== "none";
+/** Habitude : une série sans fin, ou qui dure plus longtemps qu'une série courte. */
+export const isRoutine = (/** @type {Item} */ it) => isRecurring(it) && !isShortSeries(it);
 
 /** Avec heure d'abord, dans l'ordre des heures ; puis sans heure, dans l'ordre de création. */
 function byTime(/** @type {Item} */ a, /** @type {Item} */ b) {
@@ -55,20 +57,20 @@ export function addMonths(date, n) {
  * Ce qu'un jour contient, trié pour la vue mois.
  * @param {Item[]} items @param {string} day "AAAA-MM-JJ" @param {string} today
  * @returns {{ oneOffs: Item[], carried: Item[], routine: Item[] }}
- *   oneOffs : éléments ponctuels prévus ce jour ; carried : tâches reportées à ce jour ;
- *   routine : éléments récurrents
+ *   oneOffs : éléments ponctuels et séries courtes prévus ce jour ; carried : tâches reportées
+ *   à ce jour ; routine : habitudes
  */
 export function dayEntries(items, day, today) {
   const occ = items.filter((it) => occurs(it, day));
   return {
-    oneOffs: occ.filter((it) => !isRecurring(it)).sort(byTime),
+    oneOffs: occ.filter((it) => !isRoutine(it)).sort(byTime),
     carried: carriedFor(items, day, today),
-    routine: occ.filter(isRecurring).sort(byTime),
+    routine: occ.filter(isRoutine).sort(byTime),
   };
 }
 
 /**
- * Éléments ponctuels à venir, d'aujourd'hui compris jusqu'à `days` jours plus tard.
+ * Éléments ponctuels et jours des séries courtes à venir, d'aujourd'hui compris jusqu'à `days` jours plus tard.
  * Les tâches déjà faites n'y figurent plus ; les tâches en retard reportées à aujourd'hui y sont.
  * @param {Item[]} items @param {string} today "AAAA-MM-JJ" @param {number} [days]
  * @returns {Array<{ day: string, item: Item, carried: boolean }>}
@@ -81,7 +83,7 @@ export function upcoming(items, today, days = UPCOMING_DAYS) {
   }
   for (let i = 0; i < days; i++) {
     const day = ds(addDays(t0, i));
-    const list = items.filter((it) => !isRecurring(it) && occurs(it, day)).sort(byTime);
+    const list = items.filter((it) => !isRoutine(it) && occurs(it, day)).sort(byTime);
     for (const item of list) {
       if (item.kind === "task" && taskDone(item, day)) continue;
       out.push({ day, item, carried: false });

@@ -127,3 +127,32 @@ test("une série qui a une fin peut ne plus avoir aucun jour", () => {
   // Les jours retirés d'une série sans fin sont en nombre fini : il en reste toujours.
   assert.equal(R.hasOccurrence({ start: "2026-10-01", recur: "daily", skipped: { "2026-10-01": true } }), true);
 });
+
+test("série courte : une fin, et sept jours au plus du premier au dernier", () => {
+  const de = (until, recur = "daily") => ({ start: "2026-10-03", recur, until });
+  assert.equal(R.SHORT_SERIES_DAYS, 7);
+  assert.equal(R.isShortSeries(de("2026-10-03")), true, "un seul jour");
+  assert.equal(R.isShortSeries(de("2026-10-09")), true, "sept jours");
+  assert.equal(R.isShortSeries(de("2026-10-10")), false, "huit jours");
+  assert.equal(R.isShortSeries(de(undefined)), false, "sans fin");
+  assert.equal(R.isShortSeries(de("2026-10-05", "none")), false, "élément ponctuel");
+  assert.equal(R.isShortSeries(de("2026-10-09", "weekly")), true, "la durée compte, pas le rythme");
+  // À travers le changement d'heure du 25 octobre 2026.
+  assert.equal(R.isShortSeries({ start: "2026-10-22", recur: "daily", until: "2026-10-28" }), true);
+  assert.equal(R.isShortSeries({ start: "2026-10-22", recur: "daily", until: "2026-10-29" }), false);
+});
+
+test("dernier jour d'une série qui a une fin", () => {
+  assert.equal(R.lastOccurrence({ start: "2026-10-03", recur: "daily", until: "2026-10-05" }), "2026-10-05");
+  assert.equal(
+    R.lastOccurrence({ start: "2026-10-03", recur: "daily", until: "2026-10-05", skipped: { "2026-10-05": true } }),
+    "2026-10-04",
+  );
+  assert.equal(
+    R.lastOccurrence({ start: "2026-10-01", recur: "weekly", days: [4], until: "2026-10-01" }),
+    null,
+    "aucun jour",
+  );
+  assert.equal(R.lastOccurrence({ start: "2026-10-03", recur: "daily" }), null, "sans fin");
+  assert.equal(R.lastOccurrence({ start: "2026-10-03", recur: "none" }), null);
+});

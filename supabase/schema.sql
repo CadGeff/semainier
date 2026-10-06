@@ -38,7 +38,7 @@ alter table public.items add constraint items_until_ok check (
 comment on table  public.items         is 'Semainier : créneaux bloqués et tâches, avec leur règle de récurrence.';
 comment on column public.items.days    is 'Récurrence hebdo : jours actifs, 0 = lundi … 6 = dimanche.';
 comment on column public.items.until_date is 'Dernier jour d''une série (compris). Vide : la série n''a pas de fin.';
-comment on column public.items.done    is 'Occurrences cochées : { "AAAA-MM-JJ": true }. Tâche ponctuelle : le jour où elle a été faite.';
+comment on column public.items.done    is 'Occurrences cochées : { "AAAA-MM-JJ": true }. Tâche ponctuelle, ou dernier jour d''une série courte : le jour où elle a été faite.';
 comment on column public.items.skipped is 'Occurrences retirées de la série : { "AAAA-MM-JJ": true }.';
 
 create index if not exists items_user_id_idx on public.items (user_id);

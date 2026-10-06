@@ -134,3 +134,49 @@ test("légende : minutes de créneaux par catégorie sur une période, tâches e
   assert.deepEqual(blockMinutes(items, ["2026-10-05", "2026-10-06"]), { bleu: 240, vert: 45 });
   assert.deepEqual(blockMinutes(items, []), {});
 });
+
+test("série courte : écrite comme un élément ponctuel ; à partir de huit jours, une habitude", () => {
+  const courte = item({ title: "trois jours", start: "2026-10-03", recur: "daily", until: "2026-10-05" });
+  const sept = item({ title: "sept jours", start: "2026-10-03", recur: "daily", until: "2026-10-09" });
+  const huit = item({ title: "huit jours", start: "2026-10-03", recur: "daily", until: "2026-10-10" });
+  const sansFin = item({ title: "sans fin", start: "2026-10-03", recur: "daily" });
+  const e = dayEntries([courte, sept, huit, sansFin], "2026-10-04", TODAY);
+  assert.deepEqual(
+    e.oneOffs.map((it) => it.title),
+    ["trois jours", "sept jours"],
+  );
+  assert.deepEqual(
+    e.routine.map((it) => it.title),
+    ["huit jours", "sans fin"],
+  );
+});
+
+test("à venir : chaque jour d'une série courte est listé, sauf ceux déjà faits ; une habitude jamais", () => {
+  const courte = item({
+    title: "trois jours",
+    start: "2026-10-03",
+    recur: "daily",
+    until: "2026-10-05",
+    done: { "2026-10-04": true },
+  });
+  const huit = item({ title: "huit jours", start: "2026-10-03", recur: "daily", until: "2026-10-10" });
+  const creneaux = item({
+    title: "stage",
+    kind: "block",
+    from: "09:00",
+    to: "17:00",
+    start: "2026-10-05",
+    recur: "daily",
+    until: "2026-10-06",
+  });
+  assert.deepEqual(
+    upcoming([courte, huit, creneaux], TODAY).map((u) => `${u.day} ${u.item.title}`),
+    ["2026-10-03 trois jours", "2026-10-05 stage", "2026-10-05 trois jours", "2026-10-06 stage"],
+  );
+});
+
+test("à venir : le dernier jour non fait d'une série courte finie y figure, reporté à aujourd'hui", () => {
+  const finie = item({ title: "finie hier", start: "2026-09-30", recur: "daily", until: "2026-10-02" });
+  assert.deepEqual(upcoming([finie], TODAY), [{ day: TODAY, item: finie, carried: true }]);
+  assert.deepEqual(upcoming([{ ...finie, done: { [TODAY]: true } }], TODAY), []);
+});
